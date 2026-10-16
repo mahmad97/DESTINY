@@ -676,6 +676,8 @@ double MemCell::GetMemristance(double _relativeReadVoltage) { /* Get the LRS res
 
 void MemCell::CalculateShiftEnergy() {
 	/*Model Based on GuangyuSun ASPDAC paper*/
+	if (shiftEnergy != 0)
+		return;	/* -ShiftEnergy given in the cell file */
 	double R = 4.8*1e-7 *tapeLength*2*tech->featureSize/(6*1e-9 * 1*tech->featureSize);
 	shiftEnergy = shiftCurrent*shiftCurrent*R*shiftPulse;
 }
