@@ -1,0 +1,42 @@
+//CELL FILE FOR DWM-SB (shift-based write, single-domain SB read), 32 nm
+//Device values from the LTspice cells in mahmad97/DWM-project (schematics/*_stats.txt),
+//the same values as the dwm_sb cell of the NVSim DWM fork, for a DESTINY cross-check.
+
+-MemCellType: DWM
+-ProcessNode: 32
+//20480 F^2 DBC (32 racetracks x 2 ports, Zhang 2015 Eq. 1) / 1024 stored bits
+-CellArea (F^2): 20
+-CellAspectRatio: 1
+
+//MDMTJ model, TMR 130% (Dutta 2023)
+-ResistanceOn (ohm): 2989
+-ResistanceOff (ohm): 6549
+
+//No -MinSenseVoltage: 0 mV leaves no valid sense-amp design and the run aborts
+-ReadMode: current
+-ReadVoltage (V): 0.7
+
+//Shift-based write, 98.4 fJ direction-averaged (write_stats.txt)
+-SetMode: current
+-SetCurrent (uA): 162
+-SetPulse (ns): 0.66
+-SetEnergy (pJ): 0.0984
+-ResetMode: current
+-ResetCurrent (uA): 162
+-ResetPulse (ns): 0.66
+-ResetEnergy (pJ): 0.0984
+
+//64-domain tracks with two ports (RTSim RM_baseline), 32-track DBC
+-TapeLength (bit): 64
+-PortDistance (bit): 32
+-TapePerGroup: 32
+
+//H-bridge shift, 363.9 fJ per track per one-domain shift incl. driver (shift_stats.txt);
+//remove -ShiftEnergy to use DESTINY's I^2 R t wire model instead
+-ShiftCurrent (uA): 56.86
+-ShiftPulse (ns): 1.70
+-ShiftEnergy (pJ): 0.3639
+
+-AccessType: CMOS
+-VoltageDropAccessDevice (V): 0.45
+-AccessCMOSWidth (F): 32
