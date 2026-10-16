@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -20,10 +21,16 @@ FunctionUnit::FunctionUnit() {
 
 	resetLatency = setLatency = 0;
     refreshLatency = 0;
+    shiftLatency = 0;
 	resetDynamicEnergy = setDynamicEnergy = 0;
     refreshDynamicEnergy = 0;
+    shiftDynamicEnergy = 0;
 	cellReadEnergy = 0;
 	cellSetEnergy = cellResetEnergy = 0;
+
+    setLatencySoft = resetLatencySoft = 0;
+    setDynamicEnergySoft = resetDynamicEnergySoft = 0;
+    cellSetEnergySoft = cellResetEnergySoft =0;
 }
 
 FunctionUnit::~FunctionUnit() {

@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
 //No part of DESTINY Project, including this file, may be copied,
@@ -120,15 +121,14 @@ void tsvVerif(InputParameter *inputParameter)
 
 int main(int argc, char *argv[])
 {
-	cout << fixed << setprecision(3);
 	string inputFileName;
 
 	if (argc == 1) {
-		inputFileName = "nvsim.cfg";
-		cout << "Default configuration file (nvsim.cfg) is loaded" << endl;
+		inputFileName = "destiny.cfg";
+		cout << "Default configuration file (destiny.cfg) is loaded" << endl;
 	} else {
 		inputFileName = argv[1];
-		cout << "User-defined configuration file (" << inputFileName << ") is loaded" << endl;
+		cout << "User-defined configuration file (" << inputFileName << ") is loaded";
 	}
 	cout << endl;
 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
     /* Open output file for full_exploration. */
     ofstream outputFile;
 	string outputFileName;
-	if (inputParameter->optimizationTarget == full_exploration) {
+	if (inputParameter->optimizationTarget == full_exploration||inputParameter->printAllOptimals) {
 		/*stringstream temp;
 		temp << inputParameter->outputFilePrefix << "_" << inputParameter->capacity / 1024 << "K_" << inputParameter->wordWidth
 				<< "_" << inputParameter->associativity;
@@ -238,38 +238,48 @@ int main(int argc, char *argv[])
             delete devtech;
         }
     }
-
     /* Compare against results from previous cell types. */
-    if (inputParameter->optimizationTarget == full_exploration 
-        && inputParameter->isPruningEnabled
-        && inputParameter->doublePrune) {
-        /* Pick the best of the best over all the cell types for each x,y,z pruning triple. */
-    } else if (inputParameter->optimizationTarget != full_exploration) {
-        /* Pick the best of the best for each optimization target. */
-        for (int cellIdx = 1; cellIdx < numCellTypes; cellIdx++) {
-            for (int tgtIdx = 0; tgtIdx < (int)full_exploration; tgtIdx++) {
-                bool updated = bestDataResults[0][tgtIdx].compareAndUpdate(bestDataResults[cellIdx][tgtIdx]);
-                
-                if (updated && !inputParameter->allowDifferentTagTech) {
-                    /* Make sure these match the case in compareAndUpdate. */
-                    *(bestTagResults[0][tgtIdx].bank) = *(bestTagResults[cellIdx][tgtIdx].bank);
-                    *(bestTagResults[0][tgtIdx].localWire) = *(bestTagResults[cellIdx][tgtIdx].localWire);
-                    *(bestTagResults[0][tgtIdx].globalWire) = *(bestTagResults[cellIdx][tgtIdx].globalWire);
-                    bestDataResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
-                    bestTagResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
-                } else if (updated && inputParameter->allowDifferentTagTech) {
-                    bestDataResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
-                }
+    /* Pick the best of the best for each optimization target. */
+	for (int cellIdx = 1; cellIdx < numCellTypes; cellIdx++) {
+		for (int tgtIdx = 0; tgtIdx < (int)full_exploration; tgtIdx++) {
+			bool updated = bestDataResults[0][tgtIdx].compareAndUpdate(bestDataResults[cellIdx][tgtIdx]);
 
-                /* Find the best tag for each target as well. */
-                if (inputParameter->allowDifferentTagTech) {
-                    updated = bestTagResults[0][tgtIdx].compareAndUpdate(bestTagResults[cellIdx][tgtIdx]);
-                    if (updated) 
-                        bestTagResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
-                }
+			if (updated && !inputParameter->allowDifferentTagTech) {
+				/* Make sure these match the case in compareAndUpdate. */
+				*(bestTagResults[0][tgtIdx].bank) = *(bestTagResults[cellIdx][tgtIdx].bank);
+				*(bestTagResults[0][tgtIdx].localWire) = *(bestTagResults[cellIdx][tgtIdx].localWire);
+				*(bestTagResults[0][tgtIdx].globalWire) = *(bestTagResults[cellIdx][tgtIdx].globalWire);
+				bestDataResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
+				bestTagResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
+			} else if (updated && inputParameter->allowDifferentTagTech) {
+				bestDataResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
+			}
+
+			/* Find the best tag for each target as well. */
+			if (inputParameter->allowDifferentTagTech) {
+				updated = bestTagResults[0][tgtIdx].compareAndUpdate(bestTagResults[cellIdx][tgtIdx]);
+				if (updated)
+					bestTagResults[0][tgtIdx].cellTech = sweepCells[cellIdx];
+			}
+		}
+	}
+
+	if(inputParameter->printAllOptimals && totalSolutions > 0){
+
+        for (int tgtIdx = 0; tgtIdx < (int)full_exploration; tgtIdx++) {
+            cell = bestDataResults[0][tgtIdx].cellTech;
+            cell->PrintCell();
+            if (inputParameter->designTarget == cache){
+
+            	bestDataResults[0][tgtIdx].printAsCache(bestTagResults[0][tgtIdx], inputParameter->cacheAccessMode);
+    			bestDataResults[0][tgtIdx].printAsCacheToCsvShort(bestTagResults[0][tgtIdx], inputParameter->cacheAccessMode, outputFile);
+    		}
+            else{
+                //bestDataResults[0][tgtIdx].print();
+                //bestDataResults[0][tgtIdx].printToCsvFile(outputFile);
             }
         }
-    }
+	}
 
 	if (inputParameter->optimizationTarget != full_exploration) {
 		if (totalSolutions > 0 && !inputParameter->printAllOptimals) {
@@ -286,10 +296,14 @@ int main(int argc, char *argv[])
             for (int tgtIdx = 0; tgtIdx < (int)full_exploration; tgtIdx++) {
                 cell = bestDataResults[0][tgtIdx].cellTech;
 
-                if (inputParameter->designTarget == cache)
+                if (inputParameter->designTarget == cache){
                     bestDataResults[0][tgtIdx].printAsCache(bestTagResults[0][tgtIdx], inputParameter->cacheAccessMode);
-                else
+        			bestDataResults[0][tgtIdx].printAsCacheToCsvFile(bestTagResults[0][tgtIdx], inputParameter->cacheAccessMode, outputFile);
+        		}
+                else{
                     bestDataResults[0][tgtIdx].print();
+                    bestDataResults[0][tgtIdx].printToCsvFile(outputFile);
+                }
             } 
 		} else {
 			cout << "No valid solutions." << endl;
@@ -305,12 +319,15 @@ int main(int argc, char *argv[])
 				solutionMultiplier = 8;
 			cout << totalSolutions * solutionMultiplier << " solutions in total" << endl;
 		}
+
 	}
+
 
 	if (outputFile.is_open())
 		outputFile.close();
 
 	return 0;
+
 }
 
 int nvsim(ofstream& outputFile, string inputFileName, long long& numSolution, Result *bestDataResults, Result *bestTagResults)
@@ -327,6 +344,7 @@ int nvsim(ofstream& outputFile, string inputFileName, long long& numSolution, Re
     int stackedDieCount, partitionGranularity;
 
 	long long capacity;
+	//int bitPerCell = cell->memCellLevel + 1;	//SLC:1 MLC:2
 	long blockSize;
 	int associativity;
 
@@ -431,6 +449,7 @@ int nvsim(ofstream& outputFile, string inputFileName, long long& numSolution, Re
 
 	/* adjust cache data array parameters according to the access mode */
 	capacity = (long long)inputParameter->capacity * 8;
+
 	blockSize = inputParameter->wordWidth;
 	associativity = inputParameter->associativity;
 	if (inputParameter->designTarget == cache) {
@@ -453,11 +472,11 @@ int nvsim(ofstream& outputFile, string inputFileName, long long& numSolution, Re
 	}
 
 	/* adjust block size is it is SLC NAND flash or DRAM memory chip */
-	if (inputParameter->designTarget == RAM_chip && (cell->memCellType == SLCNAND || cell->memCellType == DRAM)) {
+	if (inputParameter->designTarget == RAM_chip && (cell->memCellType == SLCNAND || cell->memCellType == MLCNAND|| cell->memCellType == DRAM)) 
+	{
 		blockSize = inputParameter->pageSize;
 		associativity = 1;
 	}
-
 	INITIAL_BASIC_WIRE;
 	BIGFOR {
 		if (blockSize / (numActiveMatPerRow * numActiveMatPerColumn * numActiveSubarrayPerRow * numActiveSubarrayPerColumn) == 0) {
@@ -566,7 +585,11 @@ int nvsim(ofstream& outputFile, string inputFileName, long long& numSolution, Re
 				}
 
 		for (int i = 0; i < (int)full_exploration; i++) {
-			bestDataResults[i].printAsCacheToCsvFile(bestTagResults[i], inputParameter->cacheAccessMode, outputFile);
+			if(inputParameter->designTarget==cache)
+				bestDataResults[i].printAsCacheToCsvFile(bestTagResults[i], inputParameter->cacheAccessMode, outputFile);
+			else
+				bestDataResults[i].printToCsvFile(outputFile);
+
 		}
 		cout << "Pruning done" << endl;
 		/* Run pruning here */
@@ -639,10 +662,10 @@ void applyConstraint() {
 		cout << "[ERROR] DRAM model is still under development" << endl;
 		exit(-1);
 	}
-	if (cell->memCellType == MLCNAND) {
-		cout << "[ERROR] MLC NAND flash model is still under development" << endl;
-		exit(-1);
-	}
+//	if (cell->memCellType == MLCNAND) {
+//		cout << "[ERROR] MLC NAND flash model is still under development" << endl;
+//		exit(-1);
+//	}
 
 	if (inputParameter->designTarget != cache && inputParameter->associativity > 1) {
 		cout << "[WARNING] Associativity setting is ignored for non-cache designs" << endl;

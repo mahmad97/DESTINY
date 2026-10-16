@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -608,21 +609,31 @@ void BankWithHtree::CalculateLatencyAndPower() {
 		readLatency = mat.readLatency;
 		writeLatency = mat.writeLatency;
         refreshLatency = mat.refreshLatency * numColumnMat; // TOTAL refresh time for all Mats
+        shiftLatency = mat.shiftLatency; //To Do
+
 		readDynamicEnergy = mat.readDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 		writeDynamicEnergy = mat.writeDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
         refreshDynamicEnergy = mat.refreshDynamicEnergy * numRowMat * numColumnMat;
-		leakage = mat.leakage * numRowMat * numColumnMat;
+        shiftDynamicEnergy = mat.shiftDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn; //To Do
+        leakage = mat.leakage * numRowMat * numColumnMat;
+	//cout<<"numRowMat "<<numRowMat<<" numColumnMat "<<numColumnMat<<"\n";
 
 		/* energy consumption on cells */
 		cellReadEnergy = mat.cellReadEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 		cellSetEnergy = mat.cellSetEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 		cellResetEnergy = mat.cellResetEnergy * numActiveMatPerRow * numActiveMatPerColumn;
+		cellSetEnergySoft = mat.cellSetEnergySoft * numActiveMatPerRow * numActiveMatPerColumn;
+		cellResetEnergySoft = mat.cellResetEnergySoft * numActiveMatPerRow * numActiveMatPerColumn;
 
 		/* for asymmetric RESET/SET only */
 		resetLatency = mat.resetLatency;
 		setLatency = mat.setLatency;
+		resetLatencySoft = mat.resetLatencySoft;
+		setLatencySoft = mat.setLatencySoft;
 		resetDynamicEnergy = mat.resetDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 		setDynamicEnergy = mat.setDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
+		resetDynamicEnergySoft = mat.resetDynamicEnergySoft * numActiveMatPerRow * numActiveMatPerColumn;
+		setDynamicEnergySoft = mat.setDynamicEnergySoft * numActiveMatPerRow * numActiveMatPerColumn;
 
 		if (inputParameter->designTarget == cache && inputParameter->cacheAccessMode == fast_access_mode)
 			beta = inputParameter->associativity;
@@ -643,6 +654,11 @@ void BankWithHtree::CalculateLatencyAndPower() {
 					(numHorizontalAddressBitToRoute[i] + numHorizontalDataDistributeBitToRoute[i] + numHorizontalDataBroadcastBitToRoute[i]) / beta;
 			setDynamicEnergy += energy * numActiveHorizontalWire[i] *
 					(numHorizontalAddressBitToRoute[i] + numHorizontalDataDistributeBitToRoute[i] + numHorizontalDataBroadcastBitToRoute[i]) / beta;
+			resetDynamicEnergySoft += energy * numActiveHorizontalWire[i] *
+					(numHorizontalAddressBitToRoute[i] + numHorizontalDataDistributeBitToRoute[i] + numHorizontalDataBroadcastBitToRoute[i]) / beta;
+			setDynamicEnergySoft += energy * numActiveHorizontalWire[i] *
+					(numHorizontalAddressBitToRoute[i] + numHorizontalDataDistributeBitToRoute[i] + numHorizontalDataBroadcastBitToRoute[i]) / beta;
+
 			refreshDynamicEnergy += energy * numActiveHorizontalWire[i] *
 					(numHorizontalAddressBitToRoute[i] + numHorizontalDataDistributeBitToRoute[i] + numHorizontalDataBroadcastBitToRoute[i]) / beta;
 			leakage += leakageWire * numSumHorizontalWire[i] * (numHorizontalAddressBitToRoute[i] +
@@ -662,6 +678,10 @@ void BankWithHtree::CalculateLatencyAndPower() {
 			resetDynamicEnergy += energy * numActiveVerticalWire[i] *
 					(numVerticalAddressBitToRoute[i] + numVerticalDataDistributeBitToRoute[i] + numVerticalDataBroadcastBitToRoute[i]) / beta;
 			setDynamicEnergy += energy * numActiveVerticalWire[i] *
+					(numVerticalAddressBitToRoute[i] + numVerticalDataDistributeBitToRoute[i] + numVerticalDataBroadcastBitToRoute[i]) / beta;
+			resetDynamicEnergySoft += energy * numActiveVerticalWire[i] *
+					(numVerticalAddressBitToRoute[i] + numVerticalDataDistributeBitToRoute[i] + numVerticalDataBroadcastBitToRoute[i]) / beta;
+			setDynamicEnergySoft += energy * numActiveVerticalWire[i] *
 					(numVerticalAddressBitToRoute[i] + numVerticalDataDistributeBitToRoute[i] + numVerticalDataBroadcastBitToRoute[i]) / beta;
 			refreshDynamicEnergy += energy * numActiveVerticalWire[i] *
 					(numVerticalAddressBitToRoute[i] + numVerticalDataDistributeBitToRoute[i] + numVerticalDataBroadcastBitToRoute[i]) / beta;
@@ -735,8 +755,10 @@ void BankWithHtree::CalculateLatencyAndPower() {
             leakage += tsvArray.numTotalBits * (stackedDieCount-1) * tsvArray.leakage;
         }
 	}
-
-    if (cell->memCellType == eDRAM) {
+	if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+		writeDynamicEnergy = MAX(setDynamicEnergy+setDynamicEnergySoft,resetDynamicEnergy+resetDynamicEnergySoft);
+	}
+    if (cell->memCellType == eDRAM ||cell->memCellType == DRAM) {
         if (refreshLatency > cell->retentionTime) {
             invalid = true;
         }

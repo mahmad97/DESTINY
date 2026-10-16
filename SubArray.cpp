@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -38,7 +39,6 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 	internalSenseAmp = _internalSenseAmp;
 	areaOptimizationLevel = _areaOptimizationLevel;
     num3DLevels = _num3DLevels;
-
 	double maxWordlineCurrent = 0;
 	double maxBitlineCurrent = 0;
 
@@ -61,7 +61,7 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 		}
 	}
 
-	if (cell->memCellType == SLCNAND) {
+	if (cell->memCellType == SLCNAND||cell->memCellType ==MLCNAND) {
 		if (numRow < inputParameter->flashBlockSize / inputParameter->pageSize) {
 			/* SLC NAND does not have enough rows to hold the page count */
 			invalid = true;
@@ -95,7 +95,7 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 		maxBitlineCurrent = MAX(cell->resetCurrent, cell->setCurrent) + cell->leakageCurrentAccessDevice * (numRow - 1);
 	}
 
-	if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor) {
+	if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor||cell->memCellType==DWM) {
 		if (cell->accessType == CMOS_access){
 			if (tech->currentOnNmos[inputParameter->temperature - 300]
 									/ tech->currentOffNmos[inputParameter->temperature - 300] < numRow / BITLINE_LEAKAGE_TOLERANCE) {
@@ -172,7 +172,7 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 		if (cell->memCellType == SRAM || cell->memCellType == DRAM || cell->memCellType == eDRAM) {
 			/* SRAM, DRAM, and eDRAM all use voltage sensing */
 			voltageSense = true;
-		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM) {
+		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM || cell->memCellType ==DWM) {
 			voltageSense = cell->readMode;
 		} else {/* NAND flash */
 			voltageSense = true;
@@ -207,7 +207,7 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 		lenWordline += ((numColumn - 1) / cell->stitching + 1) * STITCHING_OVERHEAD * devtech->featureSize;
 	}
 	/* Add select transistors into the length calculation */
-	if (cell->memCellType == SLCNAND) {
+	if (cell->memCellType == SLCNAND || cell->memCellType == MLCNAND) {
 		int pageCount = inputParameter->flashBlockSize / inputParameter->pageSize;
 		/* Two select transistor including contacts have total length of 5F */
 		lenBitline += (numRow / pageCount) * 5 * tech->featureSize;
@@ -231,12 +231,12 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 			initialized = true;
 			return;
 		}
-	} else if (cell->memCellType == SLCNAND){
+	} else if (cell->memCellType == SLCNAND || cell->memCellType == MLCNAND){
 		/* suppose the reference voltage is 0.5Vdd, the initial bitline voltage is 0.6Vdd
 		 * if the bitline drops to 0.4Vdd, the senseamp can tell which data is stored */
 		senseVoltage = MAX(cell->minSenseVoltage, 0.2 * tech->vdd);
 	} else {
-		/* TO-DO: different memory technology might have different values here */
+		/* TODO: different memory technology might have different values here */
 		senseVoltage = cell->minSenseVoltage;
 	}
 
@@ -267,9 +267,11 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 				voltageMemCellOff = cell->readCurrent * resMemCellOff;
 				voltageMemCellOn = cell->readCurrent * resMemCellOn;
 				voltagePrecharge = (voltageMemCellOff + voltageMemCellOn) / 2;
+				//cout << voltagePrecharge<<" "<<tech->vdd<<endl;
 				voltagePrecharge = MIN(tech->vdd, voltagePrecharge);  /* TO-DO: we can have charge bump to increase SA working point */
 				if ((voltagePrecharge - voltageMemCellOn) <= senseVoltage) {
-					cout <<"Error[Subarray]: Read current too large or too small that no reasonable precharge voltage existing" <<endl;
+					//cout <<"Error[Subarray]: Read current too large or too small that no reasonable precharge voltage existing" <<endl;
+					cout << voltagePrecharge<<" "<<voltageMemCellOn<<""<<senseVoltage<<endl;
 					invalid = true;
 					return;
 				}
@@ -288,11 +290,16 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 				}
 			}
 		}
-	} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor) {
+	} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType==DWM) {
 		/* MRAM, PCRAM, and memristor have three types of access devices: CMOS, BJT, and diode */
 		if (cell->accessType == CMOS_access) {
 			resCellAccess = CalculateOnResistance(cell->widthAccessCMOS * tech->featureSize, NMOS, inputParameter->temperature, *tech);
-			capCellAccess = CalculateDrainCap(cell->widthAccessCMOS * tech->featureSize, NMOS, cell->widthInFeatureSize * tech->featureSize, *tech);
+			if(cell->memCellType==DWM){
+				capCellAccess = CalculateDrainCap(cell->widthAccessCMOS * tech->featureSize, NMOS, cell->widthInFeatureSize * tech->featureSize*cell->tapePerGroup, *tech);
+
+			}else{
+				capCellAccess = CalculateDrainCap(cell->widthAccessCMOS * tech->featureSize, NMOS, cell->widthInFeatureSize * tech->featureSize, *tech);
+			}
 			capWordline += CalculateGateCap(cell->widthAccessCMOS * tech->featureSize, *tech) * numColumn;
 			capBitline  += capCellAccess * numRow / 2;	/* Due to shared contact */
 		} else if (cell->accessType == BJT_access) {
@@ -329,9 +336,12 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 				voltageMemCellOff = cell->readCurrent * resMemCellOff;
 				voltageMemCellOn = cell->readCurrent * resMemCellOn;
 				voltagePrecharge = (voltageMemCellOff + voltageMemCellOn) / 2;
-				voltagePrecharge = MIN(tech->vdd, voltagePrecharge);  /* TO-DO: we can have charge bump to increase SA working point */
+				//cout << voltagePrecharge<<" "<<tech->vdd<<endl;
+				//voltagePrecharge = MIN(tech->vdd, voltagePrecharge);  /* TO-DO: we can have charge bump to increase SA working point */
+
 				if ((voltagePrecharge - voltageMemCellOn) <= senseVoltage) {
 					cout <<"Error[Subarray]: Read current too large or too small that no reasonable precharge voltage existing" <<endl;
+					cout << voltagePrecharge<<" "<<voltageMemCellOn<<" "<<senseVoltage<<endl;
 					invalid = true;
 					return;
 				}
@@ -350,7 +360,7 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 				}
 			}
 		}
-	} else if (cell->memCellType == SLCNAND) {
+	} else if (cell->memCellType == SLCNAND || cell->memCellType == MLCNAND) {
 		/* Calculate the NAND flash string length, which is the page count per block plus 2 (two select transistors) */
 		int pageCount = inputParameter->flashBlockSize / inputParameter->pageSize;
 		int stringLength = pageCount + 2;
@@ -360,9 +370,9 @@ void SubArray::Initialize(long long _numRow, long long _numColumn, bool _multipl
 		capWordline += CalculateGateCap(tech->featureSize, *tech) * numColumn * cell->gateCouplingRatio / (cell->gateCouplingRatio + 1);
 		capBitline  += capCellAccess * (numRow / pageCount) / 2;	/* 2 is due to shared contact and the effective row count is numRow/pageCount */
 		voltagePrecharge = tech->vdd * 0.6;	/* SLC NAND flash bitline precharge voltage is assumed to 0.6Vdd */
-	} else {	/* MLC NAND flash */
-		// TO-DO
-	}
+	} else {
+	
+    }
 
 	/* Initialize sub-component */
 
@@ -442,6 +452,15 @@ void SubArray::CalculateArea() {
 
 		width = lenWordline;
 		height = lenBitline;
+		lenBitline = (double)numRow * cell->heightInFeatureSize * devtech->featureSize;
+
+		if(cell->memCellType==DWM){
+			/* DWM needs shift drivers and some overhead to be shift */
+			height = height* ((cell->tapeLength + cell->portDistance)/cell->tapeLength);	//overhead area
+
+			int tapeseg = numRow/cell->tapeLength;
+			height = height+ 2* tapeseg * cell->tapePerGroup * 4* devtech->featureSize;	//4F high each shifter driver
+		}
 
 		rowDecoder.CalculateArea();
 		if (rowDecoder.height > height) {
@@ -556,7 +575,8 @@ void SubArray::CalculateLatency(double _rampInput) {
 					+ senseAmpMuxLev1.readLatency + senseAmpMuxLev2.readLatency;
 			/* assume symmetric read/write for DRAM/eDRAM bitline delay */
 			writeLatency = readLatency;
-		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM) {
+		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM || cell->memCellType == DWM) {
+			/* Calculate Read Latency*/
 			double bitlineRamp = 0;
 			if (cell->readMode == false) {	/* current-sensing */
 				/* Use ICCAD 2009 model */
@@ -570,7 +590,9 @@ void SubArray::CalculateLatency(double _rampInput) {
 					bitlineDelayOn = tau * log((voltagePrecharge - voltageMemCellOn)/(voltagePrecharge - voltageMemCellOn - senseVoltage));  /* BitlineDelay of HRS */
 					tau = resMemCellOff * (capCellAccess + capBitline + bitlineMux.capForPreviousDelayCalculation)
 							+ resBitline * (bitlineMux.capForPreviousDelayCalculation + capBitline / 2);  /* time constant of HRS */
+
 					bitlineDelayOff = tau * log((voltageMemCellOff - voltagePrecharge)/(voltageMemCellOff - voltagePrecharge - senseVoltage));
+
 					bitlineDelay = MAX(bitlineDelayOn, bitlineDelayOff);
 				} else {   /*Voltage-in voltage sensing */
 					double tau = resEquivalentOn * (capCellAccess + capBitline + bitlineMux.capForPreviousDelayCalculation)
@@ -592,39 +614,122 @@ void SubArray::CalculateLatency(double _rampInput) {
 				senseAmpMuxLev1.CalculateLatency(bitlineMux.rampOutput);
 				senseAmpMuxLev2.CalculateLatency(senseAmpMuxLev1.rampOutput);
 			}
-			readLatency = decoderLatency + bitlineDelay + bitlineMux.readLatency + senseAmp.readLatency
-					+ senseAmpMuxLev1.readLatency + senseAmpMuxLev2.readLatency;
 
+			if(inputParameter->readScheme == normal_read && cell->memCellLevel==SLC){
+				//normal_read for SLC
+				readLatency = decoderLatency + bitlineDelay + bitlineMux.readLatency + senseAmp.readLatency
+					+ senseAmpMuxLev1.readLatency + senseAmpMuxLev2.readLatency + cell->readPulse;
+
+			}else if(inputParameter->readScheme == read_and_compare && cell->memCellLevel!=SLC){
+				//read_and_compare for MLC/TLC. MLC need to compare twice, while TLC needs 3 times comparison.
+				int compareTimes=1;
+				if (cell->memCellLevel==MLC)
+					compareTimes = 2;
+				else
+					compareTimes = 3;
+
+				readLatency = decoderLatency + bitlineDelay + bitlineMux.readLatency + senseAmp.readLatency * compareTimes
+									+ senseAmpMuxLev1.readLatency + senseAmpMuxLev2.readLatency + cell->readPulse;
+			}
+
+			/*Calculate Write Latency */
 			if (cell->memCellType == PCRAM) {
-				if (inputParameter->writeScheme == write_and_verify) {
-					/*TO-DO: write and verify programming */
-				} else {
-					writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);	/* TO-DO: why not directly use precharger latency? */
-					resetLatency = writeLatency + cell->resetPulse;
-					setLatency = writeLatency + cell->setPulse;
-					writeLatency += MAX(cell->resetPulse, cell->setPulse);
+				if(cell->memCellLevel == SLC){
+					if(inputParameter->writeScheme == normal_write){
+						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						resetLatency = writeLatency + cell->resetPulse;
+						setLatency = writeLatency + cell->setPulse;
+						writeLatency += MAX(cell->resetPulse, cell->setPulse);
+					}else if(inputParameter->writeScheme == write_and_verify){
+						/*Assuming we can get target resistance after 1 time verification*/
+						writeLatency = MAX(rowDecoder.writeLatency + readLatency, columnDecoderLatency + chargeLatency + readLatency);
+						resetLatency = writeLatency + cell->resetPulse;
+						setLatency = writeLatency + cell->setPulse;
+						writeLatency += MAX(cell->resetPulse, cell->setPulse);
+					}
+				}else{	//MLC and TLC.
+					if(inputParameter->writeScheme==set_before_reset){
+						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						setLatency = writeLatency + cell->setPulse;
+						resetLatency = writeLatency + (cell->resetPulse+cell->readPulse+cell->interval*2) *cell->avgIterations;
+						writeLatency = setLatency + resetLatency;
+					}else if(inputParameter->writeScheme ==reset_before_set){
+						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						resetLatency = writeLatency + cell->resetPulse;
+						setLatency = writeLatency + (cell->setPulse+cell->readPulse+cell->interval*2) * cell->avgIterations;
+						writeLatency = setLatency + resetLatency;
+					}
 				}
+
 			} else if (cell->memCellType == FBRAM) {
 				writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
 				resetLatency = writeLatency + cell->resetPulse;
 				setLatency = writeLatency + cell->setPulse;
 				writeLatency += MAX(cell->resetPulse, cell->setPulse);
-			} else { //memristor and MRAM
-				if (cell->accessType == diode_access || cell->accessType == none_access) {
-					if (inputParameter->writeScheme == erase_before_reset || inputParameter->writeScheme == erase_before_set)
-						writeLatency = MAX(rowDecoder.writeLatency, chargeLatency);
-					else
+			} else if (cell->memCellType == MRAM){
+				if (cell->memCellLevel ==SLC){
+					if (cell->accessType == diode_access || cell->accessType == none_access) {
+						if (inputParameter->writeScheme == erase_before_reset || inputParameter->writeScheme == erase_before_set)
+							writeLatency = MAX(rowDecoder.writeLatency, chargeLatency);
+						else
+							writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						writeLatency += cell->resetPulse + cell->setPulse;
+					} else { // CMOS or Bipolar access
 						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
-					writeLatency += chargeLatency;
-					writeLatency += cell->resetPulse + cell->setPulse;
-				} else { // CMOS or Bipolar access
+						resetLatency = writeLatency + cell->resetPulse;
+						setLatency = writeLatency + cell->setPulse;
+						writeLatency += MAX(cell->resetPulse, cell->setPulse);
+					}
+				}else{
+					//MLC and TLC. Differentiate Hard bit and Soft bit
 					writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
 					resetLatency = writeLatency + cell->resetPulse;
 					setLatency = writeLatency + cell->setPulse;
-					writeLatency += MAX(cell->resetPulse, cell->setPulse);
+					resetLatencySoft = writeLatency + cell->resetPulseSoft;
+					setLatencySoft = writeLatency + cell->setPulseSoft;
+					writeLatency = MAX(setLatency+cell->setPulseSoft,resetLatency+cell->resetPulseSoft);
 				}
+			} else if (cell->memCellType == memristor){
+				if (cell->memCellLevel ==SLC){
+					if (cell->accessType == diode_access || cell->accessType == none_access) {
+						if (inputParameter->writeScheme == erase_before_reset || inputParameter->writeScheme == erase_before_set)
+							writeLatency = MAX(rowDecoder.writeLatency, chargeLatency);
+						else
+							writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						//writeLatency += chargeLatency;
+						writeLatency += cell->resetPulse + cell->setPulse;
+
+
+					} else { // CMOS or Bipolar access
+						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						resetLatency = writeLatency + cell->resetPulse;
+						setLatency = writeLatency + cell->setPulse;
+						writeLatency += MAX(cell->resetPulse, cell->setPulse);
+
+					}
+				}else{
+					if(inputParameter->writeScheme==set_before_reset){
+						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						setLatency = writeLatency + cell->setPulse;
+						resetLatency = writeLatency + (cell->resetPulse+cell->readPulse + 2*cell->interval) *cell->avgIterations;
+						writeLatency = setLatency + resetLatency;
+					}else if(inputParameter->writeScheme ==reset_before_set){
+						writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+						resetLatency = writeLatency + cell->resetPulse;
+						setLatency = writeLatency + (cell->setPulse + cell->readPulse + 2*cell->interval) * cell->avgIterations;
+						writeLatency = setLatency + resetLatency;
+					}
+				}
+			} else if (cell->memCellType ==DWM) {
+				writeLatency = MAX(rowDecoder.writeLatency, columnDecoderLatency + chargeLatency);
+				resetLatency = writeLatency + cell->resetPulse;
+				setLatency = writeLatency + cell->setPulse;
+				writeLatency += MAX(cell->resetPulse, cell->setPulse);
+				shiftLatency = cell->shiftPulse+decoderLatency;
+
 			}
-		} else if (cell->memCellType == SLCNAND) {
+
+		} else if (cell->memCellType == SLCNAND || cell->memCellType == MLCNAND) {
 			/* Calculate the NAND flash string length, which is the page count per block plus 2 (two select transistors) */
 			int pageCount = inputParameter->flashBlockSize / inputParameter->pageSize;
 			int stringLength = pageCount + 2;
@@ -650,7 +755,15 @@ void SubArray::CalculateLatency(double _rampInput) {
 				senseAmpMuxLev1.CalculateLatency(bitlineMux.rampOutput);
 				senseAmpMuxLev2.CalculateLatency(senseAmpMuxLev1.rampOutput);
 			}
-			readLatency = decoderLatency + bitlineDelay + bitlineMux.readLatency + senseAmp.readLatency
+				//read_and_compare for MLC/TLC. MLC need to compare twice, while TLC needs 3 times comparison.
+				int compareTimes = 1;
+				if (cell->memCellLevel==MLC)
+					compareTimes = 2;
+				else if(cell->memCellLevel==TLC)
+					compareTimes = 3;
+
+
+			readLatency = decoderLatency + bitlineDelay + bitlineMux.readLatency + senseAmp.readLatency*compareTimes
 					+ senseAmpMuxLev1.readLatency + senseAmpMuxLev2.readLatency;
 			/* calculate the erase time, a.k.a. reset here */
 			resetLatency = MAX(rowDecoder.readLatency, columnDecoderLatency + chargeLatency) + cell->flashEraseTime;
@@ -658,8 +771,8 @@ void SubArray::CalculateLatency(double _rampInput) {
 			setLatency = MAX(rowDecoder.readLatency, columnDecoderLatency + chargeLatency) + cell->flashProgramTime;
 			/* use the programming latency as the write latency for SLC NAND*/
 			writeLatency = setLatency;
-		} else {	/* MLC NAND */
-			/* TO-DO */
+		} else {	
+		
 		}
 	}
 }
@@ -701,7 +814,7 @@ void SubArray::CalculatePower() {
 			double writeVoltage = cell->resetVoltage;	/* should also equal to setVoltage, for DRAM, it is Vdd */
 			writeDynamicEnergy = (capBitline + bitlineMux.capForPreviousPowerCalculation) * writeVoltage * writeVoltage * numColumn;
 			leakage = readDynamicEnergy / DRAM_REFRESH_PERIOD * numRow;
-		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM) {
+		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM || cell->memCellType == DWM) {
 			if (cell->readMode == false) {	/* current-sensing */
 				/* Use ICCAD 2009 model */
 				double resBitlineMux = bitlineMux.resNMOSPassTransistor;
@@ -710,16 +823,36 @@ void SubArray::CalculatePower() {
 				readDynamicEnergy = capCellAccess * vpreMax * vpreMax + bitlineMux.capForPreviousPowerCalculation
 						* vpreMin * vpreMin + capBitline * (vpreMax * vpreMax + vpreMin * vpreMin + vpreMax * vpreMin) / 3;
 				readDynamicEnergy *= numColumn;
+				//readDynamicEnergy *= numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
 			} else {						/* voltage-sensing */
 				readDynamicEnergy = (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) *
 						(voltagePrecharge * voltagePrecharge - voltageMemCellOn * voltageMemCellOn ) * numColumn;
 			}
 
-			if (cell->readPower == 0) 
-				cellReadEnergy = 2 * cell->CalculateReadPower() * senseAmp.readLatency; /* x2 is because of the reference cell */
-			else
-				cellReadEnergy = 2 * cell->readPower * senseAmp.readLatency;
-			cellReadEnergy *= numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+			double singleCellReadEnergy = 0;
+			if(inputParameter->readScheme == normal_read && cell->memCellLevel==SLC){	//normal_read for SLC
+				if (cell->readPower == 0)
+					cellReadEnergy = 2 * cell->CalculateReadPower() * senseAmp.readLatency  + cell->CalculateReadPower() * cell->readPulse; /* x2 is because of the reference cell */
+				else
+					cellReadEnergy =  cell->readPower * (senseAmp.readLatency+ cell->readPulse) +cell->readPower * senseAmp.readLatency;
+				singleCellReadEnergy = cellReadEnergy;
+				cellReadEnergy *= numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+			}else if(inputParameter->readScheme == read_and_compare && cell->memCellLevel!=SLC){
+				//read_and_compare for MLC/TLC. MLC need to compare twice, while TLC needs 3 times comparison.
+				//We assume the sequential reading here.
+				int compareTimes = 1;
+				if (cell->memCellLevel==MLC)
+					compareTimes = 2;
+				else
+					compareTimes = 3;
+
+				if (cell->readPower == 0)
+					cellReadEnergy = (2 * cell->CalculateReadPower() * senseAmp.readLatency  + cell->CalculateReadPower() * cell->readPulse)*compareTimes; /* x2 is because of the reference cell */
+				else
+					cellReadEnergy = (cell->readPower * (senseAmp.readLatency+ cell->readPulse) +cell->readPower * senseAmp.readLatency) *compareTimes;
+				singleCellReadEnergy = cellReadEnergy;
+				cellReadEnergy *= numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+			}
 
 			/* Ignore the dynamic transition during the SET/RESET operation */
 			/* Assume that the cell resistance keeps high for worst-case power estimation */
@@ -727,24 +860,60 @@ void SubArray::CalculatePower() {
 
 			double resetEnergyPerBit = cell->resetEnergy;
 			double setEnergyPerBit = cell->setEnergy;
-			if (cell->setMode)
-				setEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * cell->setVoltage * cell->setVoltage;
-			else
-				setEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * tech->vdd * tech->vdd;
-			if (cell->resetMode)
-				resetEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * cell->resetVoltage * cell->resetVoltage;
-			else
-				resetEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * tech->vdd * tech->vdd;
+			double resetEnergyPerBitSoft = cell->resetEnergySoft;
+			double setEnergyPerBitSoft = cell->setEnergySoft;
 
-			if (cell->memCellType == PCRAM) { //PCRAM write energy
-				if (inputParameter->writeScheme == write_and_verify) {
-					/*TO-DO: write and verify programming */
-				} else {
-					cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
-					cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
-					cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
-					cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
-					writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy);
+			if (cell->setMode){
+				setEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * cell->setVoltage * cell->setVoltage;
+				setEnergyPerBitSoft += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * cell->setVoltageSoft * cell->setVoltageSoft;
+			}else{
+				setEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * tech->vdd * tech->vdd;
+				setEnergyPerBitSoft += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * tech->vdd * tech->vdd;
+			}
+
+			if (cell->resetMode){
+				resetEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * cell->resetVoltage * cell->resetVoltage;
+				resetEnergyPerBitSoft += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * cell->resetVoltageSoft * cell->resetVoltageSoft;
+			}else{
+				resetEnergyPerBit += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * tech->vdd * tech->vdd;
+				resetEnergyPerBitSoft += (capCellAccess + capBitline + bitlineMux.capForPreviousPowerCalculation) * tech->vdd * tech->vdd;
+			}
+
+
+
+			if (cell->memCellType == PCRAM) {
+				if(cell->memCellLevel == SLC){
+					if(inputParameter->writeScheme == normal_write){
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy);
+
+					}else if(inputParameter->writeScheme == write_and_verify){
+						/*Assuming we can get target resistance after 1 time verification*/
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy) + cellReadEnergy;
+					}
+				}else{	//MLC and TLC.
+					if(inputParameter->writeScheme==set_before_reset){
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						cellResetEnergy = (cellResetEnergy+cell->readPower*cell->readPulse)*cell->avgIterations;
+						writeDynamicEnergy = cellResetEnergy+ cellSetEnergy;
+					}else if(inputParameter->writeScheme ==reset_before_set){
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						cellSetEnergy = (cellSetEnergy+cell->readPower*cell->readPulse)*cell->avgIterations;
+						writeDynamicEnergy = cellResetEnergy+ cellSetEnergy;
+					}
 				}
 			} else if (cell->memCellType == FBRAM){ //FBRAM write energy
 				cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
@@ -752,28 +921,80 @@ void SubArray::CalculatePower() {
 				cellResetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
 				cellSetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;  /* Due to the shaper inefficiency */
 				writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy);
-			} else { //MRAM and memristor write energy
-				if (cell->accessType == diode_access || cell->accessType == none_access) {
-					if (inputParameter->writeScheme == erase_before_reset || inputParameter->writeScheme == erase_before_set) {
+			} else if (cell->memCellType == memristor){
+				if(cell->memCellLevel == SLC){
+					if(inputParameter->writeScheme == normal_write){
 						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
 						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
-						writeDynamicEnergy = cellResetEnergy + cellSetEnergy;	/* TO-DO: bug here, did you consider the write pattern? */
-					} else { /* write scheme = set_before_reset or reset_before_set */
-						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
-						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
 						writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy);
+					}else if(inputParameter->writeScheme == write_and_verify){
+						/*Assuming we can get target resistance after 1 time verification*/
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy) + cellReadEnergy;
 					}
-				} else {
+				}else{	//MLC and TLC.
+					if(inputParameter->writeScheme==set_before_reset){
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						cellResetEnergy = (cellResetEnergy+cell->readPower*cell->readPulse)*cell->avgIterations;
+						writeDynamicEnergy = cellResetEnergy+ cellSetEnergy;
+					}else if(inputParameter->writeScheme ==reset_before_set){
+						cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+						cellResetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;
+						cellSetEnergy /= SHAPER_EFFICIENCY_CONSERVATIVE;  /* Due to the shaper inefficiency */
+						cellSetEnergy = (cellSetEnergy+cell->readPower*cell->readPulse)*cell->avgIterations;
+						writeDynamicEnergy = cellResetEnergy+ cellSetEnergy;
+					}
+				}
+
+			} else { //MRAM  and DWM write energy
+				if (cell->memCellLevel==SLC) {
 					cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
 					cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
 					writeDynamicEnergy = MAX(cellResetEnergy, cellSetEnergy);
+					cellResetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
+					cellSetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;  /* Due to the shaper inefficiency */
+					writeDynamicEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
+				}else{	//MLC and TLC
+					cellResetEnergy = resetEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+					cellSetEnergy = setEnergyPerBit * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+					cellResetEnergySoft = resetEnergyPerBitSoft * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+					cellSetEnergySoft = setEnergyPerBitSoft * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+
+					writeDynamicEnergy = MAX(cellResetEnergy+cellResetEnergySoft,cellSetEnergy+cellSetEnergySoft);
+
+					cellResetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
+					cellSetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;  /* Due to the shaper inefficiency */
+					cellResetEnergySoft /= SHAPER_EFFICIENCY_AGGRESSIVE;
+					cellSetEnergySoft /= SHAPER_EFFICIENCY_AGGRESSIVE;  /* Due to the shaper inefficiency */
+					writeDynamicEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
 				}
-				cellResetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
-				cellSetEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;  /* Due to the shaper inefficiency */
-				writeDynamicEnergy /= SHAPER_EFFICIENCY_AGGRESSIVE;
+
+				if (cell->memCellType == DWM){
+					/* DWM shift Energy*/
+					cell->CalculateShiftEnergy();
+					shiftDynamicEnergy = cell->shiftEnergy * numColumn / muxSenseAmp / muxOutputLev1 / muxOutputLev2;
+					shiftDynamicEnergy+= rowDecoder.readDynamicEnergy + bitlineMuxDecoder.readDynamicEnergy + bitlineMux.readDynamicEnergy;
+
+				}
 			}
 			leakage = 0;                       //TO-DO: cell leaks during read/write operation
-		} else if (cell->memCellType == SLCNAND) {
+
+			if(cell->memCellType == DWM){	//leakage power from shift drivers
+				leakage = CalculateGateLeakage(INV, 1, cell->widthAccessCMOS * tech->featureSize, 0,
+							inputParameter->temperature, *tech);
+				leakage*= numRow/cell->tapeLength*numColumn*2;
+			}
+
+		} else if (cell->memCellType == SLCNAND||cell->memCellType == MLCNAND) {
 			/* Calculate the NAND flash string length, which is the page count per block plus 2 (two select transistors) */
 			int pageCount = inputParameter->flashBlockSize / inputParameter->pageSize;
 			int stringLength = pageCount + 2;
@@ -841,13 +1062,14 @@ void SubArray::CalculatePower() {
 
 			/* Assume NAND flash cell does not consume any leakage */
 			leakage = 0;
-		} else {	/* MLC NAND */
-			/* TO-DO */
+		} else {
 		}
 
 		if (inputParameter->designTarget == cache && inputParameter->cacheAccessMode != sequential_access_mode) {
 			cellResetEnergy /= inputParameter->associativity;
 			cellSetEnergy /= inputParameter->associativity;
+			cellResetEnergySoft /= inputParameter->associativity;
+			cellSetEnergySoft /= inputParameter->associativity;
 			writeDynamicEnergy /= inputParameter->associativity;
 			resetDynamicEnergy /= inputParameter->associativity;
 			setDynamicEnergy /= inputParameter->associativity;
@@ -865,11 +1087,17 @@ void SubArray::CalculatePower() {
                              + senseAmp.readDynamicEnergy;
         refreshDynamicEnergy *= numRow; // Energy for this entire subarray 
 
-		/* for assymetric RESET and SET latency calculation only */
+		/* for asymmetric RESET and SET latency calculation only */
 		setDynamicEnergy += cellSetEnergy + rowDecoder.setDynamicEnergy + bitlineMuxDecoder.writeDynamicEnergy + senseAmpMuxLev1Decoder.writeDynamicEnergy
 				+ senseAmpMuxLev2Decoder.writeDynamicEnergy + bitlineMux.writeDynamicEnergy
 				+ senseAmp.writeDynamicEnergy + senseAmpMuxLev1.writeDynamicEnergy + senseAmpMuxLev2.writeDynamicEnergy;
-		resetDynamicEnergy += setDynamicEnergy + rowDecoder.resetDynamicEnergy + bitlineMuxDecoder.writeDynamicEnergy + senseAmpMuxLev1Decoder.writeDynamicEnergy
+		resetDynamicEnergy += cellResetEnergy + rowDecoder.resetDynamicEnergy + bitlineMuxDecoder.writeDynamicEnergy + senseAmpMuxLev1Decoder.writeDynamicEnergy
+				+ senseAmpMuxLev2Decoder.writeDynamicEnergy + bitlineMux.writeDynamicEnergy
+				+ senseAmp.writeDynamicEnergy + senseAmpMuxLev1.writeDynamicEnergy + senseAmpMuxLev2.writeDynamicEnergy;
+		setDynamicEnergySoft += cellSetEnergySoft + rowDecoder.setDynamicEnergy + bitlineMuxDecoder.writeDynamicEnergy + senseAmpMuxLev1Decoder.writeDynamicEnergy
+				+ senseAmpMuxLev2Decoder.writeDynamicEnergy + bitlineMux.writeDynamicEnergy
+				+ senseAmp.writeDynamicEnergy + senseAmpMuxLev1.writeDynamicEnergy + senseAmpMuxLev2.writeDynamicEnergy;
+		resetDynamicEnergySoft += cellResetEnergySoft + rowDecoder.resetDynamicEnergy + bitlineMuxDecoder.writeDynamicEnergy + senseAmpMuxLev1Decoder.writeDynamicEnergy
 				+ senseAmpMuxLev2Decoder.writeDynamicEnergy + bitlineMux.writeDynamicEnergy
 				+ senseAmp.writeDynamicEnergy + senseAmpMuxLev1.writeDynamicEnergy + senseAmpMuxLev2.writeDynamicEnergy;
 
@@ -877,6 +1105,7 @@ void SubArray::CalculatePower() {
 			writeDynamicEnergy += bitlineMux.writeDynamicEnergy + senseAmp.writeDynamicEnergy
 					+ senseAmpMuxLev1.writeDynamicEnergy + senseAmpMuxLev2.writeDynamicEnergy;
 		}
+
 		leakage += rowDecoder.leakage + bitlineMuxDecoder.leakage + senseAmpMuxLev1Decoder.leakage
 				+ senseAmpMuxLev2Decoder.leakage + precharger.leakage + bitlineMux.leakage
 				+ senseAmp.leakage + senseAmpMuxLev1.leakage + senseAmpMuxLev2.leakage;
@@ -906,13 +1135,22 @@ SubArray & SubArray::operator=(const SubArray &rhs) {
 	writeDynamicEnergy = rhs.writeDynamicEnergy;
 	resetLatency = rhs.resetLatency;
 	setLatency = rhs.setLatency;
-    refreshLatency = rhs.refreshLatency;
+	resetLatencySoft = rhs.resetLatencySoft;
+	setLatencySoft = rhs.setLatencySoft;
+	refreshLatency = rhs.refreshLatency;
+    shiftLatency = rhs.shiftLatency;
 	resetDynamicEnergy = rhs.resetDynamicEnergy;
 	setDynamicEnergy = rhs.setDynamicEnergy;
+	resetDynamicEnergySoft = rhs.resetDynamicEnergySoft;
+	setDynamicEnergySoft = rhs.setDynamicEnergySoft;
     refreshDynamicEnergy = rhs.refreshDynamicEnergy;
+    shiftDynamicEnergy = rhs.shiftDynamicEnergy;
 	cellReadEnergy = rhs.cellReadEnergy;
 	cellResetEnergy = rhs.cellResetEnergy;
 	cellSetEnergy = rhs.cellSetEnergy;
+	cellResetEnergySoft = rhs.cellResetEnergySoft;
+	cellSetEnergySoft = rhs.cellSetEnergySoft;
+
 	leakage = rhs.leakage;
 	initialized = rhs.initialized;
 	numRow = rhs.numRow;

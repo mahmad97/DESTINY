@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
 //No part of DESTINY Project, including this file, may be copied,
@@ -341,6 +342,10 @@
 	<< \
 	((x) < 1e-9 ? "ps" : (x) < 1e-6 ? "ns" : (x) < 1e-3 ? "us" : (x) < 1 ? "ms" : "s")
 
+#define TO_SECOND_NOUNIT(x) \
+	((x) < 1e-9 ? "ps " : (x) < 1e-6 ? "ns " : (x) < 1e-3 ? "us " : (x) < 1 ? "ms " : "1s ") << \
+	((x) < 1e-9 ? (x) * 1e12 : (x) < 1e-6 ? (x) * 1e9 : (x) < 1e-3 ? (x) * 1e6 : (x) < 1 ? (x) * 1e3 : (x))
+	
 #define TO_BPS(x) \
 	((x) < 1e3 ? (x) : (x) < 1e6 ? (x) / 1e3 : (x) < 1e9 ? (x) / 1e6 : (x) < 1e12 ? (x) / 1e9 : (x) / 1e12) \
 	<< \
@@ -351,12 +356,22 @@
 	<< \
 	((x) < 1e-9 ? "pJ" : (x) < 1e-6 ? "nJ" : (x) < 1e-3 ? "uJ" : (x) < 1 ? "mJ" : "J")
 
+#define TO_JOULE_NOUNIT(x) \
+	((x) < 1e-9 ? "pJ " : (x) < 1e-6 ? "nJ " : (x) < 1e-3 ? "uJ " : (x) < 1 ? "mJ " : "1J ") \
+        << \
+	((x) < 1e-9 ? (x) * 1e12 : (x) < 1e-6 ? (x) * 1e9 : (x) < 1e-3 ? (x) * 1e6 : (x) < 1 ? (x) * 1e3 : (x))
+	
 #define TO_WATT(x) \
 	((x) < 1e-9 ? (x) * 1e12 : (x) < 1e-6 ? (x) * 1e9 : (x) < 1e-3 ? (x) * 1e6 : (x) < 1 ? (x) * 1e3 : (x)) \
 	<< \
 	((x) < 1e-9 ? "pW" : (x) < 1e-6 ? "nW" : (x) < 1e-3 ? "uW" : (x) < 1 ? "mW" : "W")
 
-#define TO_METER(x) \
+#define TO_WATT_NOUNIT(x) \
+	((x) < 1e-9 ? "pW " : (x) < 1e-6 ? "nW " : (x) < 1e-3 ? "uW " : (x) < 1 ? "mW " : "1W ") \
+        <<\
+	((x) < 1e-9 ? (x) * 1e12 : (x) < 1e-6 ? (x) * 1e9 : (x) < 1e-3 ? (x) * 1e6 : (x) < 1 ? (x) * 1e3 : (x))
+	
+	#define TO_METER(x) \
 	((x) < 1e-9 ? (x) * 1e12 : (x) < 1e-6 ? (x) * 1e9 : (x) < 1e-3 ? (x) * 1e6 : (x) < 1 ? (x) * 1e3 : (x)) \
 	<< \
 	((x) < 1e-9 ? "pm" : (x) < 1e-6 ? "nm" : (x) < 1e-3 ? "um" : (x) < 1 ? "mm" : "m")

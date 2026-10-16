@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -36,6 +37,15 @@ public:
 	double setDynamicEnergy, resetDynamicEnergy;	/* Unit: J */
 	double cellReadEnergy, cellSetEnergy, cellResetEnergy;			/* Unit: J */
     double refreshDynamicEnergy;                    /* Unit: J */
+
+    /* for DWM	*/
+    double shiftLatency;					/* Unit: s */
+    double shiftDynamicEnergy;						/* Unit: J */
+
+    /* for MLC MRAM */
+    double setLatencySoft, resetLatencySoft;
+    double setDynamicEnergySoft, resetDynamicEnergySoft;
+    double cellSetEnergySoft, cellResetEnergySoft;
 
     int logical_effort(int num_gates_min, double g, double F, double *w_n, double *w_p,
                        double C_load, double p_to_n_sz_ratio, double max_w_nmos,

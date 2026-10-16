@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -310,9 +311,16 @@ void Mat::CalculateLatency(double _rampInput) {
 		/* for RESET and SET only */
 		resetLatency = predecoderLatency + subarray.resetLatency;
 		setLatency = predecoderLatency + subarray.setLatency;
+		/* for MLC MRAM only*/
+		resetLatencySoft = predecoderLatency + subarray.resetLatencySoft;
+		setLatencySoft = predecoderLatency + subarray.setLatencySoft;
+
         /* Valid for DRAM and eDRAM only. */
         refreshLatency = predecoderLatency + subarray.refreshLatency;
         refreshLatency *= numColumnSubarray; // TOTAL refresh time for all subarrays
+
+        /*valid for DWM only */
+        shiftLatency = predecoderLatency + subarray.shiftLatency;
 
 		if (memoryType == tag && internalSenseAmp) {
 			comparator.CalculateLatency(_rampInput);
@@ -359,12 +367,20 @@ void Mat::CalculatePower() {
 		cellReadEnergy = subarray.cellReadEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
 		cellSetEnergy = subarray.cellSetEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
 		cellResetEnergy = subarray.cellResetEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
+		cellSetEnergySoft = subarray.cellSetEnergySoft * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
+		cellResetEnergySoft = subarray.cellResetEnergySoft * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
 		/* for RESET and SET only */
 		resetDynamicEnergy = writeDynamicEnergy + subarray.resetDynamicEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
 		setDynamicEnergy = writeDynamicEnergy + subarray.setDynamicEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
+		resetDynamicEnergySoft = writeDynamicEnergy + subarray.resetDynamicEnergySoft * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
+		setDynamicEnergySoft = writeDynamicEnergy + subarray.setDynamicEnergySoft * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
+
 		/* total write energy */
 		writeDynamicEnergy += subarray.writeDynamicEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
 		leakage += subarray.leakage * numRowSubarray * numColumnSubarray;
+
+        /*valid for DWM only */
+        shiftDynamicEnergy += subarray.shiftDynamicEnergy * numActiveSubarrayPerRow * numActiveSubarrayPerColumn;
 
         if (stackedDieCount > 1 && partitionGranularity != 0) {
             // Add address TSV energy
@@ -404,12 +420,18 @@ Mat & Mat::operator=(const Mat &rhs) {
 	writeDynamicEnergy = rhs.writeDynamicEnergy;
 	resetLatency = rhs.resetLatency;
 	setLatency = rhs.setLatency;
+	resetLatencySoft = rhs.resetLatencySoft;
+	setLatencySoft = rhs.setLatencySoft;
 	resetDynamicEnergy = rhs.resetDynamicEnergy;
 	setDynamicEnergy = rhs.setDynamicEnergy;
-    refreshDynamicEnergy = rhs.refreshDynamicEnergy;
+	resetDynamicEnergySoft = rhs.resetDynamicEnergySoft;
+	setDynamicEnergySoft = rhs.setDynamicEnergySoft;
+	refreshDynamicEnergy = rhs.refreshDynamicEnergy;
 	cellReadEnergy = rhs.cellReadEnergy;
 	cellSetEnergy = rhs.cellSetEnergy;
 	cellResetEnergy = rhs.cellResetEnergy;
+	cellSetEnergySoft = rhs.cellSetEnergySoft;
+	cellResetEnergySoft = rhs.cellResetEnergySoft;
 	leakage = rhs.leakage;
 	initialized = rhs.initialized;
 	invalid = rhs.invalid;

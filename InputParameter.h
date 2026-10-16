@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -30,6 +31,7 @@ public:
 	/* Properties */
 	DesignTarget designTarget;		/* Cache, RAM, or CAM */
 	OptimizationTarget optimizationTarget;	/* Either read latency, write latency, read energy, write energy, leakage, or area */
+	OptimizationTarget secondOptimizationTarget;	/* Either read latency, write latency, read energy, write energy, leakage, or area */
 	int processNode;				/* Process node (nm) */
 	int64_t capacity;				/* Memory/cache capacity, Unit: Byte */
 	long wordWidth;					/* The width of each input/output word, Unit: bit */
@@ -38,6 +40,7 @@ public:
 	int temperature;				/* The ambient temperature, Unit: K */
 	double maxDriverCurrent;        /* The maximum driving current that the wordline/bitline driver can provide */
 	WriteScheme writeScheme;		/* The write scheme */
+	ReadScheme readScheme;
 	double readLatencyConstraint;	/* The allowed variation to the best read latency */
 	double writeLatencyConstraint;	/* The allowed variation to the best write latency */
 	double readDynamicEnergyConstraint;		/* The allowed variation to the best read dynamic energy */
@@ -117,7 +120,6 @@ public:
     bool printAllOptimals;
     bool allowDifferentTagTech;
 
-    int printLevel;
 };
 
 #endif /* INPUTPARAMETER_H_ */

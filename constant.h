@@ -66,7 +66,7 @@
 #define RES_ADJ 8.6
 #define VOL_SWING .1
 
-#define CONSTRAINT_ASPECT_RATIO_BANK	3
+#define CONSTRAINT_ASPECT_RATIO_BANK	10	/*change it to 10 according to NVSIM's update*/
 
 #define BITLINE_LEAKAGE_TOLERANCE	1
 #define IR_DROP_TOLERANCE 			0.2

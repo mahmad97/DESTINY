@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -186,7 +187,7 @@ void BankWithoutHtree::Initialize(int _numRowMat, int _numColumnMat, long long _
 		} else if (cell->memCellType == MRAM || cell->memCellType == PCRAM || cell->memCellType == memristor || cell->memCellType == FBRAM) {
 			voltageSense = cell->readMode;
 		} else {/* NAND flash */
-			// TO-DO
+			// TODO
 		}
 
 		int numSenseAmp;
@@ -321,9 +322,11 @@ void BankWithoutHtree::CalculateLatencyAndPower() {
 		mat.CalculatePower();
 		readLatency = resetLatency = setLatency = writeLatency = 0;
         refreshLatency = mat.refreshLatency * numColumnMat; // TOTAL refresh time for all Mats
+        shiftLatency = mat.shiftLatency;
 		readDynamicEnergy = writeDynamicEnergy = resetDynamicEnergy = setDynamicEnergy = 0;
         refreshDynamicEnergy = mat.refreshDynamicEnergy * numRowMat * numColumnMat;
-		leakage = 0;
+		shiftDynamicEnergy = mat.shiftDynamicEnergy;
+        leakage = 0;
 
 		double lengthWire;
 		lengthWire = mat.height * (numRowMat + 1);
@@ -459,6 +462,8 @@ void BankWithoutHtree::CalculateLatencyAndPower() {
 	readLatency += mat.readLatency;
 	resetLatency = writeLatency + mat.resetLatency;
 	setLatency = writeLatency + mat.setLatency;
+	resetLatencySoft = writeLatency + mat.resetLatencySoft;
+	setLatencySoft = writeLatency + mat.setLatencySoft;
 	writeLatency += mat.writeLatency;
 	readDynamicEnergy += mat.readDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 	cellReadEnergy = mat.cellReadEnergy * numActiveMatPerRow * numActiveMatPerColumn;
@@ -466,6 +471,8 @@ void BankWithoutHtree::CalculateLatencyAndPower() {
 	cellResetEnergy = mat.cellResetEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 	resetDynamicEnergy = writeDynamicEnergy + mat.resetDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 	setDynamicEnergy = writeDynamicEnergy + mat.setDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
+	resetDynamicEnergySoft = writeDynamicEnergy + mat.resetDynamicEnergySoft * numActiveMatPerRow * numActiveMatPerColumn;
+	setDynamicEnergySoft = writeDynamicEnergy + mat.setDynamicEnergySoft * numActiveMatPerRow * numActiveMatPerColumn;
 	writeDynamicEnergy += mat.writeDynamicEnergy * numActiveMatPerRow * numActiveMatPerColumn;
 	leakage += mat.leakage * numRowMat * numColumnMat;
 
@@ -537,8 +544,10 @@ void BankWithoutHtree::CalculateLatencyAndPower() {
 
         leakage += tsvArray.numTotalBits * (stackedDieCount-1) * tsvArray.leakage;
     }
-
-    if (cell->memCellType == eDRAM) {
+	if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+		writeDynamicEnergy = MAX(setDynamicEnergy+setDynamicEnergySoft,resetDynamicEnergy+resetDynamicEnergySoft);
+	}
+    if (cell->memCellType == eDRAM||cell->memCellType == DRAM) {
         if (refreshLatency > cell->retentionTime) {
             invalid = true;
         }

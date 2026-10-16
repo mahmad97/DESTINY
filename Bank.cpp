@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -33,13 +34,21 @@ Bank & Bank::operator=(const Bank &rhs) {
 	writeDynamicEnergy = rhs.writeDynamicEnergy;
 	resetLatency = rhs.resetLatency;
 	setLatency = rhs.setLatency;
-    refreshLatency = rhs.refreshLatency;
+	resetLatencySoft = rhs.resetLatencySoft;
+	setLatencySoft = rhs.setLatencySoft;
+	refreshLatency = rhs.refreshLatency;
+	shiftLatency = rhs.shiftLatency;
 	resetDynamicEnergy = rhs.resetDynamicEnergy;
 	setDynamicEnergy = rhs.setDynamicEnergy;
-    refreshDynamicEnergy = rhs.refreshDynamicEnergy;
+	resetDynamicEnergySoft = rhs.resetDynamicEnergySoft;
+	setDynamicEnergySoft = rhs.setDynamicEnergySoft;
+	refreshDynamicEnergy = rhs.refreshDynamicEnergy;
 	cellReadEnergy = rhs.cellReadEnergy;
 	cellSetEnergy = rhs.cellSetEnergy;
 	cellResetEnergy = rhs.cellResetEnergy;
+	cellSetEnergySoft = rhs.cellSetEnergySoft;
+	cellResetEnergySoft = rhs.cellResetEnergySoft;
+	shiftDynamicEnergy = rhs.shiftDynamicEnergy;
 	leakage = rhs.leakage;
 	initialized = rhs.initialized;
 	invalid = rhs.invalid;

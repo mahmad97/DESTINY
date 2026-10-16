@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
 //No part of DESTINY Project, including this file, may be copied,
@@ -6,7 +7,8 @@
 
 #ifndef TYPEDEF_H_
 #define TYPEDEF_H_
-
+#include <assert.h>
+#include <string>
 enum MemCellType
 {
 	SRAM,
@@ -17,7 +19,29 @@ enum MemCellType
 	memristor,
 	FBRAM,
 	SLCNAND,
-	MLCNAND
+	MLCNAND,
+	DWM
+};
+inline std::string ToStringMemCellType(MemCellType mc)
+{
+ if(mc==SRAM) return "SRAM";
+ if(mc==DRAM) return "DRAM";
+ if(mc==eDRAM) return "eDRAM";
+ if(mc==MRAM) return "MRAM";
+ if(mc==PCRAM) return "PCM";
+ if(mc==memristor) return "RRAM";
+ if(mc==FBRAM) return "FBRAM";
+ if(mc==SLCNAND) return "SLCNAND";
+ if(mc==MLCNAND) return "MLCNAND";
+ if(mc==DWM) return "DWM";
+ assert(0);
+}
+
+enum MemCellLevel
+{
+	SLC,
+	MLC,
+	TLC
 };
 enum CellAccessType
 {
@@ -34,6 +58,14 @@ enum DeviceRoadmap
 	LOP,	/* Low operating power */
     EDRAM   /* Embedded DRAM */
 };
+inline std::string ToStringRoadMap(DeviceRoadmap rm)
+{
+  if(rm == HP) return "HP";
+  if(rm == LSTP) return "LSTP";
+  if(rm == LOP) return "LOP";
+  if(rm == EDRAM) return "EDRAM";
+  assert(0);
+}
 
 enum WireType
 {
@@ -88,6 +120,12 @@ enum WriteScheme
 	normal_write
 };
 
+enum ReadScheme
+{
+	read_and_compare,
+	normal_read
+};
+
 enum DesignTarget
 {
 	cache,
@@ -105,8 +143,23 @@ enum OptimizationTarget
 	write_edp_optimized = 5,
 	leakage_optimized = 6,
 	area_optimized = 7,
-	full_exploration = 8
+	full_exploration = 8,
+	null_value = 9 
 };
+ inline std::string ToStringOptTarget(OptimizationTarget ot)
+{
+ if(ot == read_latency_optimized) return "RLat";
+ if(ot == write_latency_optimized) return "WLat";
+ if(ot == read_energy_optimized) return "REnergy";
+ if(ot == write_energy_optimized) return "WEnergy";
+ if(ot == read_edp_optimized) return "REDP";
+ if(ot == write_edp_optimized) return "WEDP";
+ if(ot == leakage_optimized) return "LEAKGE";
+ if(ot == area_optimized) return "AREA";
+ if(ot == full_exploration) return "FULL";
+ if(ot == null_value) return "NULLVALUE";
+ assert(0);
+}
 
 enum CacheAccessMode
 {

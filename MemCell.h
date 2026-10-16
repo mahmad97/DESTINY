@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -29,11 +30,14 @@ public:
 	void CellScaling(int _targetProcessNode);
 	double GetMemristance(double _relativeReadVoltage);  /* Get the LRS resistance of memristor at log-linera region of I-V curve */
 	void CalculateWriteEnergy();
+	void CalculateShiftEnergy();
 	double CalculateReadPower();
 	void PrintCell(int indent = 0);
 
 	/* Properties */
+	string inputFileName;
 	MemCellType memCellType;	/* Memory cell type (like MRAM, PCRAM, etc.) */
+	MemCellLevel memCellLevel;	/* Memory cell storage level, SLC, MLC, TLC...*/
 	int processNode;        /* Cell original process technology node, Unit: nm*/
 	double area;			/* Cell area, Unit: F^2 */
 	double aspectRatio;		/* Cell aspect ratio, H/W */
@@ -46,8 +50,9 @@ public:
 	bool   readMode;		/* true = voltage-mode, false = current-mode */
 	double readVoltage;		/* Read voltage */
 	double readCurrent;		/* Read current */
+	double readPulse;		/* Read pulse*/
 	double minSenseVoltage; /* Minimum sense voltage */
-        double wordlineBoostRatio; /*TO-DO: function not realized: ratio of boost wordline voltage to vdd */
+    double wordlineBoostRatio; /*TO-DO: function not realized: ratio of boost wordline voltage to vdd */
 	double readPower;       /* Read power per bitline (uW)*/
 	bool   resetMode;		/* true = voltage-mode, false = current-mode */
 	double resetVoltage;	/* Reset voltage */
@@ -95,6 +100,30 @@ public:
     /* For eDRAM. */
     double retentionTime;           /* Cell time to data loss (us) */
     double temperature;             /* Temperature for which the cell input values are valid. */
+
+    /* For DWM	*/
+    double shiftCurrent;			
+    double shiftPulse;
+    double shiftEnergy;
+    double tapeLength;
+    double portDistance;
+    double tapePerGroup;
+
+    /* For MLC	*/
+    double avgIterations;
+    double interval;
+
+    /* For MLC MRAM*/
+
+	double resetVoltageSoft;	/* Reset voltage */
+	double resetCurrentSoft;	/* Reset current */
+	double resetPulseSoft;		/* Reset pulse duration (ns) */
+	double resetEnergySoft;     /* Reset energy per cell (pJ) */
+
+	double setVoltageSoft;		/* Set voltage */
+	double setCurrentSoft;		/* Set current */
+	double setPulseSoft;		/* Set pulse duration (ns) */
+	double setEnergySoft;       /* Set energy per cell (pJ) */
 };
 
 #endif /* MEMCELL_H_ */

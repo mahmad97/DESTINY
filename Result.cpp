@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -10,15 +11,16 @@
 #include "global.h"
 #include "formula.h"
 #include "macros.h"
-
 #include <iostream>
 #include <fstream>
 
+#include <sstream>
 using namespace std;
+	 
 
 Result::Result() {
-	// TODO Auto-generated constructor stub
-	if (inputParameter->routingMode == h_tree)
+	
+    if (inputParameter->routingMode == h_tree)
 		bank = new BankWithHtree();
 	else
 		bank = new BankWithoutHtree();
@@ -72,6 +74,69 @@ void Result::reset() {
 	bank->area = invalid_value;
 }
 
+/*bool Result::compareAndUpdate(Result &newResult) {
+    bool toUpdate = false;
+
+	if (newResult.bank->readLatency <= limitReadLatency && newResult.bank->writeLatency <= limitWriteLatency
+			&& newResult.bank->readDynamicEnergy <= limitReadDynamicEnergy && newResult.bank->writeDynamicEnergy <= limitWriteDynamicEnergy
+			&& newResult.bank->readLatency * newResult.bank->readDynamicEnergy <= limitReadEdp
+			&& newResult.bank->writeLatency * newResult.bank->writeDynamicEnergy <= limitWriteEdp
+			&& newResult.bank->area <= limitArea && newResult.bank->leakage <= limitLeakage) {
+		switch (optimizationTarget) {
+		case read_latency_optimized:
+			if 	(newResult.bank->readLatency < bank->readLatency)
+				toUpdate = true;
+			else if 	( areAlmostEqual(newResult.bank->readLatency,  bank->readLatency))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case write_latency_optimized:
+			if 	(newResult.bank->writeLatency < bank->writeLatency)
+				toUpdate = true;
+			else if	( areAlmostEqual(newResult.bank->writeLatency,  bank->writeLatency))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case read_energy_optimized:
+			if 	(newResult.bank->readDynamicEnergy < bank->readDynamicEnergy)
+				toUpdate = true;
+			break;
+		case write_energy_optimized:
+			if 	(newResult.bank->writeDynamicEnergy < bank->writeDynamicEnergy)
+				toUpdate = true;
+			break;
+		case read_edp_optimized:
+			if 	(newResult.bank->readLatency * newResult.bank->readDynamicEnergy < bank->readLatency * bank->readDynamicEnergy)
+				toUpdate = true;
+			break;
+		case write_edp_optimized:
+			if 	(newResult.bank->writeLatency * newResult.bank->writeDynamicEnergy < bank->writeLatency * bank->writeDynamicEnergy)
+				toUpdate = true;
+			break;
+		case area_optimized:
+			if 	(newResult.bank->area < bank->area)
+				toUpdate = true;
+			break;
+		case leakage_optimized:
+			if 	(newResult.bank->leakage < bank->leakage)
+				toUpdate = true;
+			break;
+		default:	
+			// should not happen 
+			;
+		}
+		if (toUpdate) {
+			*bank = *(newResult.bank);
+			*localWire = *(newResult.localWire);
+			*globalWire = *(newResult.globalWire);
+		}
+	}
+
+    return toUpdate;
+}
+*/
 bool Result::compareAndUpdate(Result &newResult) {
     bool toUpdate = false;
 
@@ -84,6 +149,87 @@ bool Result::compareAndUpdate(Result &newResult) {
 		case read_latency_optimized:
 			if 	(newResult.bank->readLatency < bank->readLatency)
 				toUpdate = true;
+			else if 	( areAlmostEqual(newResult.bank->readLatency,  bank->readLatency))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case write_latency_optimized:
+			if 	(newResult.bank->writeLatency < bank->writeLatency)
+				toUpdate = true;
+			else if	( areAlmostEqual(newResult.bank->writeLatency,  bank->writeLatency))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case read_energy_optimized:
+			if 	(newResult.bank->readDynamicEnergy < bank->readDynamicEnergy)
+				toUpdate = true;
+	                else if	( areAlmostEqual(newResult.bank->readDynamicEnergy,  bank->readDynamicEnergy))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case write_energy_optimized:
+			if 	(newResult.bank->writeDynamicEnergy < bank->writeDynamicEnergy)
+				toUpdate = true;
+			else if	( areAlmostEqual(newResult.bank->writeDynamicEnergy,  bank->writeDynamicEnergy))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case read_edp_optimized:
+			if 	(newResult.bank->readLatency * newResult.bank->readDynamicEnergy < bank->readLatency * bank->readDynamicEnergy)
+				toUpdate = true;
+                        else if	( areAlmostEqual(newResult.bank->readLatency * newResult.bank->readDynamicEnergy,  bank->readLatency * bank->readDynamicEnergy))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case write_edp_optimized:
+			if 	(newResult.bank->writeLatency * newResult.bank->writeDynamicEnergy < bank->writeLatency * bank->writeDynamicEnergy)
+				toUpdate = true;
+                        else if	( areAlmostEqual(newResult.bank->writeLatency * newResult.bank->writeDynamicEnergy,  bank->writeLatency * bank->writeDynamicEnergy))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case area_optimized:
+			if 	(newResult.bank->area < bank->area)
+				toUpdate = true;
+			else if	( areAlmostEqual(newResult.bank->area,  bank->area))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		case leakage_optimized:
+			if 	(newResult.bank->leakage < bank->leakage)
+				toUpdate = true;
+			else if	( areAlmostEqual(newResult.bank->leakage,  bank->leakage))
+			{			 
+				toUpdate = compareSecondOptTarget(newResult);
+			}
+			break;
+		default:	/* Exploration */
+			/* should not happen */
+			;
+		}
+		if (toUpdate) {
+			*bank = *(newResult.bank);
+			*localWire = *(newResult.localWire);
+			*globalWire = *(newResult.globalWire);
+		}
+	}
+
+    return toUpdate;
+}
+
+bool Result::compareSecondOptTarget(Result &newResult) {
+    bool toUpdate = false;	
+		switch (inputParameter->secondOptimizationTarget) {
+		case read_latency_optimized:
+			if 	(newResult.bank->readLatency < bank->readLatency)
+				toUpdate = true;			
 			break;
 		case write_latency_optimized:
 			if 	(newResult.bank->writeLatency < bank->writeLatency)
@@ -113,20 +259,14 @@ bool Result::compareAndUpdate(Result &newResult) {
 			if 	(newResult.bank->leakage < bank->leakage)
 				toUpdate = true;
 			break;
-		default:	/* Exploration */
-			/* should not happen */
-			;
-		}
-		if (toUpdate) {
-			*bank = *(newResult.bank);
-			*localWire = *(newResult.localWire);
-			*globalWire = *(newResult.globalWire);
-		}
-	}
+	        case null_value:
+				toUpdate =false; break;
 
+		default:	/* Exploration */
+			toUpdate =false; break;
+		} 
     return toUpdate;
 }
-
 string Result::printOptimizationTarget() {
     string rv;
 
@@ -337,6 +477,7 @@ void Result::print(int indent) {
 			<< cell->area * tech->featureSize * tech->featureSize * bank->capacity / bank->numRowMat
 			/ bank->numColumnMat / bank->numRowSubarray / bank->numColumnSubarray
 			/ bank->mat.subarray.area * 100 << "%)" <<endl;
+
     if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
         cout << string(indent, ' ') << " |--- TSV Area      = " << TO_SQM(bank->tsvArray.area) << endl;
     } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
@@ -348,6 +489,7 @@ void Result::print(int indent) {
         cout << string(indent, ' ') << " |--- TSV Area      = " << TO_SQM(totalTSVArea) << endl;
         cout << string(indent, ' ') << " |--- Logic Layer Area = " << TO_SQM(areaLogicLayer) << endl;
     }
+
 	cout << string(indent, ' ') << " - Area Efficiency = " << cell->area * tech->featureSize * tech->featureSize
 			* bank->capacity / bank->area * 100 << "%" << endl;
 
@@ -371,19 +513,25 @@ void Result::print(int indent) {
 	cout << string(indent, ' ') << "    |--- Predecoder Latency = " << TO_SECOND(bank->mat.predecoderLatency) << endl;
 	cout << string(indent, ' ') << "    |--- Subarray Latency   = " << TO_SECOND(bank->mat.subarray.readLatency) << endl;
 	cout << string(indent, ' ') << "       |--- Row Decoder Latency = " << TO_SECOND(bank->mat.subarray.rowDecoder.readLatency) << endl;
-	cout << string(indent, ' ') << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelay) << endl;
+	cout << string(indent, ' ') << "       |--- Bitline Latency     = " << TO_SECOND(bank->mat.subarray.bitlineDelay) << ","<<TO_SECOND(bank->mat.subarray.bitlineDelayOn)<<","<< TO_SECOND(bank->mat.subarray.bitlineDelayOff)<< endl;
 	if (inputParameter->internalSensing)
 		cout << string(indent, ' ') << "       |--- Senseamp Latency    = " << TO_SECOND(bank->mat.subarray.senseAmp.readLatency) << endl;
 	cout << string(indent, ' ') << "       |--- Mux Latency         = " << TO_SECOND(bank->mat.subarray.bitlineMux.readLatency
 													+ bank->mat.subarray.senseAmpMuxLev1.readLatency
 													+ bank->mat.subarray.senseAmpMuxLev2.readLatency) << endl;
 	cout << string(indent, ' ') << "       |--- Precharge Latency   = " << TO_SECOND(bank->mat.subarray.precharger.readLatency) << endl;
+	cout << string(indent, ' ') << "       |--- Read Pulse   = " << TO_SECOND(cell->readPulse) << endl;
+
 	if (bank->mat.memoryType == tag && bank->mat.internalSenseAmp)
 		cout << string(indent, ' ') << "    |--- Comparator Latency  = " << TO_SECOND(bank->mat.comparator.readLatency) << endl;
 
-	if (cell->memCellType == PCRAM || cell->memCellType == FBRAM ||
-			(cell->memCellType == memristor && (cell->accessType == CMOS_access || cell->accessType == BJT_access))) {
+	if (cell->memCellType == PCRAM || cell->memCellType == FBRAM || cell->memCellType ==MRAM ||
+			(cell->memCellType == memristor && (cell->accessType == CMOS_access || cell->accessType == BJT_access || cell->memCellLevel!=SLC))) {
+		cout << string(indent, ' ') << " - Write Total Latency = " << TO_SECOND(bank->writeLatency) << endl;
 		cout << string(indent, ' ') << " - RESET Latency = " << TO_SECOND(bank->resetLatency) << endl;
+		if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << " - RESET Soft Latency = " << TO_SECOND(bank->resetLatencySoft) << endl;
+		}
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Latency    = " << TO_SECOND(bank->tsvArray.resetLatency * (bank->stackedDieCount-1)) << endl;
         } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
@@ -393,14 +541,23 @@ void Result::print(int indent) {
 			cout << string(indent, ' ') << " |--- H-Tree Latency = " << TO_SECOND(bank->routingResetLatency) << endl;
 		else
 			cout << string(indent, ' ') << " |--- Non-H-Tree Latency = " << TO_SECOND(bank->routingResetLatency) << endl;
+
+
 		cout << string(indent, ' ') << " |--- Mat Latency    = " << TO_SECOND(bank->mat.resetLatency) << endl;
 		cout << string(indent, ' ') << "    |--- Predecoder Latency = " << TO_SECOND(bank->mat.predecoderLatency) << endl;
 		cout << string(indent, ' ') << "    |--- Subarray Latency   = " << TO_SECOND(bank->mat.subarray.resetLatency) << endl;
 		cout << string(indent, ' ') << "       |--- RESET Pulse Duration = " << TO_SECOND(cell->resetPulse) << endl;
+		if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << "       |--- RESET Soft Pulse Duration   = " << TO_SECOND(cell->resetPulseSoft) << endl;
+		}
 		cout << string(indent, ' ') << "       |--- Row Decoder Latency  = " << TO_SECOND(bank->mat.subarray.rowDecoder.writeLatency) << endl;
 		cout << string(indent, ' ') << "       |--- Charge Latency   = " << TO_SECOND(bank->mat.subarray.chargeLatency) << endl;
+
 		cout << string(indent, ' ') << " - SET Latency   = " << TO_SECOND(bank->setLatency) << endl;
-        if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
+		if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << " - SET Soft Latency = " << TO_SECOND(bank->setLatencySoft) << endl;
+		}
+		if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Latency    = " << TO_SECOND(bank->tsvArray.setLatency * (bank->stackedDieCount-1)) << endl;
         } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
             cout << string(indent, ' ') << " |--- TSV Latency    = " << TO_SECOND(bank->tsvArray.setLatency * (bank->stackedDieCount-1)) << endl;
@@ -413,9 +570,14 @@ void Result::print(int indent) {
 		cout << string(indent, ' ') << "    |--- Predecoder Latency = " << TO_SECOND(bank->mat.predecoderLatency) << endl;
 		cout << string(indent, ' ') << "    |--- Subarray Latency   = " << TO_SECOND(bank->mat.subarray.setLatency) << endl;
 		cout << string(indent, ' ') << "       |--- SET Pulse Duration   = " << TO_SECOND(cell->setPulse) << endl;
+		if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << "       |--- SET Soft Pulse Duration   = " << TO_SECOND(cell->setPulseSoft) << endl;
+		}
 		cout << string(indent, ' ') << "       |--- Row Decoder Latency  = " << TO_SECOND(bank->mat.subarray.rowDecoder.writeLatency) << endl;
 		cout << string(indent, ' ') << "       |--- Charger Latency      = " << TO_SECOND(bank->mat.subarray.chargeLatency) << endl;
-	} else if (cell->memCellType == SLCNAND) {
+
+
+	} else if (cell->memCellType == SLCNAND ||cell->memCellType ==MLCNAND) {
 		cout << string(indent, ' ') << " - Erase Latency = " << TO_SECOND(bank->resetLatency) << endl;
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Latency    = " << TO_SECOND(bank->tsvArray.resetLatency * (bank->stackedDieCount-1)) << endl;
@@ -447,12 +609,11 @@ void Result::print(int indent) {
 		cout << string(indent, ' ') << " |--- Mat Latency    = " << TO_SECOND(bank->mat.writeLatency) << endl;
 		cout << string(indent, ' ') << "    |--- Predecoder Latency = " << TO_SECOND(bank->mat.predecoderLatency) << endl;
 		cout << string(indent, ' ') << "    |--- Subarray Latency   = " << TO_SECOND(bank->mat.subarray.writeLatency) << endl;
-		if (cell->memCellType == MRAM)
-			cout << string(indent, ' ') << "       |--- Write Pulse Duration = " << TO_SECOND(cell->resetPulse) << endl;	// MRAM reset/set is equal
+
 		cout << string(indent, ' ') << "       |--- Row Decoder Latency = " << TO_SECOND(bank->mat.subarray.rowDecoder.writeLatency) << endl;
 		cout << string(indent, ' ') << "       |--- Charge Latency      = " << TO_SECOND(bank->mat.subarray.chargeLatency) << endl;
 	}
-    if (cell->memCellType == eDRAM) {
+    if (cell->memCellType == eDRAM || cell->memCellType == DRAM) {
         cout << string(indent, ' ') << " - Refresh Latency = " << TO_SECOND(bank->refreshLatency) << endl;
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Latency    = " << TO_SECOND(bank->tsvArray.writeLatency * (bank->stackedDieCount-1)) << endl;
@@ -468,10 +629,15 @@ void Result::print(int indent) {
 		cout << string(indent, ' ') << "    |--- Subarray Latency   = " << TO_SECOND(bank->mat.subarray.refreshLatency) << endl;
     }
 
+    if (cell->memCellType ==DWM) {
+        cout << string(indent, ' ') << " - Shift Latency = " << TO_SECOND(bank->shiftLatency) << endl;
+    }
+
 	double readBandwidth = (double)bank->blockSize /
 			(bank->mat.subarray.readLatency - bank->mat.subarray.rowDecoder.readLatency
 			+ bank->mat.subarray.precharger.readLatency) / 8;
 	cout << string(indent, ' ') << " - Read Bandwidth  = " << TO_BPS(readBandwidth) << endl;
+        //cout<<" blocksize "<<bank->blockSize<<" rL "<<bank->mat.subarray.readLatency * 1e6<<" rL1 "<<bank->mat.subarray.rowDecoder.readLatency * 1e6<<" rL2 "<<bank->mat.subarray.precharger.readLatency * 1e6<<"\n";
 	double writeBandwidth = (double)bank->blockSize /
 			(bank->mat.subarray.writeLatency) / 8;
 	cout << string(indent, ' ') << " - Write Bandwidth = " << TO_BPS(writeBandwidth) << endl;
@@ -479,12 +645,21 @@ void Result::print(int indent) {
 	cout << string(indent, ' ') << "Power:" << endl;
 
 	cout << string(indent, ' ') << " -  Read Dynamic Energy = " << TO_JOULE(bank->readDynamicEnergy) << endl;
+	
     if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
+        //cerr<<" using bank partitionGranularity as 0\n";
         // address and control bit dynamics + read data output dynamic
         cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.writeDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numReadBits + bank->tsvArray.readDynamicEnergy * bank->tsvArray.numDataBits * (bank->stackedDieCount-1)) << endl;
-    } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
+        //cout<<"SEE bank->tsvArray.writeDynamicEnergy "<<TO_JOULE(bank->tsvArray.writeDynamicEnergy)<<"\n";
+	//cout<<"SEE bank->tsvArray.numReadBits "<<bank->tsvArray.numReadBits<<"\n";
+	//cout<<"SEE bank->tsvArray.readDynamicEnergy "<<TO_JOULE(bank->tsvArray.readDynamicEnergy)<<"\n";
+	//cout<<"SEE bank->tsvArray.numDataBits "<<bank->tsvArray.numDataBits<<"\n";
+	
+    } 
+    else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
         // address bit dynamic + control bit dynamic + read data dynamic
         // TODO: revisit this
+        //cerr<<" using bank partitionGranularity as 1\n";
         cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->mat.tsvArray.writeDynamicEnergy * (bank->stackedDieCount-1) * (bank->mat.tsvArray.numAccessBits) + bank->tsvArray.writeDynamicEnergy * (bank->stackedDieCount-1) * bank->stackedDieCount + bank->tsvArray.readDynamicEnergy * bank->blockSize * (bank->stackedDieCount-1)) << endl;
     }
 	if (inputParameter->routingMode == h_tree)
@@ -500,7 +675,7 @@ void Result::print(int indent) {
 	cout << string(indent, ' ') << "       |--- Mux Decoder Dynamic Energy = " << TO_JOULE(bank->mat.subarray.bitlineMuxDecoder.readDynamicEnergy
 													+ bank->mat.subarray.senseAmpMuxLev1Decoder.readDynamicEnergy
 													+ bank->mat.subarray.senseAmpMuxLev2Decoder.readDynamicEnergy) << endl;
-	if (cell->memCellType == PCRAM || cell->memCellType == FBRAM || cell->memCellType == MRAM || cell->memCellType == memristor ) {
+	if (cell->memCellType == PCRAM || cell->memCellType == FBRAM || cell->memCellType == MRAM || cell->memCellType == memristor || cell->memCellType ==DWM) {
 		cout << string(indent, ' ') << "       |--- Bitline & Cell Read Energy = " << TO_JOULE(bank->mat.subarray.cellReadEnergy) << endl;
 	}
 	if (inputParameter->internalSensing)
@@ -510,12 +685,31 @@ void Result::print(int indent) {
 													+ bank->mat.subarray.senseAmpMuxLev2.readDynamicEnergy) << endl;
 	cout << string(indent, ' ') << "       |--- Precharge Dynamic Energy   = " << TO_JOULE(bank->mat.subarray.precharger.readDynamicEnergy) << endl;
 
-	if (cell->memCellType == PCRAM || cell->memCellType == FBRAM ||
+	if (cell->memCellType == PCRAM || cell->memCellType == FBRAM || cell->memCellType == DWM || cell->memCellType == MRAM ||
 			(cell->memCellType == memristor && (cell->accessType == CMOS_access || cell->accessType == BJT_access))) {
+		if(cell->memCellType==PCRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << " - Write Dynmamic Energy = " << TO_JOULE(bank->resetDynamicEnergy+bank->setDynamicEnergy) << endl;
+			if (inputParameter->writeScheme==set_before_reset)
+				cout << string(indent, ' ') << "  |--- Single Bit Write Energy = " <<TO_JOULE(cell->setEnergy+(cell->resetEnergy+cell->readPower*cell->readPulse)*cell->avgIterations)<<endl;
+			else
+				cout << string(indent, ' ') << "  |--- Single Bit Write Energy = " <<TO_JOULE(cell->resetEnergy+(cell->setEnergy+cell->readPower*cell->readPulse)*cell->avgIterations)<<endl;
+
+		}
+
+
+			cout << string(indent, ' ') << " - Write Dynamic Energy = " << TO_JOULE(bank->writeDynamicEnergy ) << endl;
+
 		cout << string(indent, ' ') << " - RESET Dynamic Energy = " << TO_JOULE(bank->resetDynamicEnergy) << endl;
+		if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << " - RESET Soft Dynamic Energy = " << TO_JOULE(bank->resetDynamicEnergySoft) << endl;
+		}
+
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.resetDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numAccessBits) << endl;
-        } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
+           //cout<<"SEE1 bank->tsvArray.resetDynamicEnergy "<<bank->tsvArray.resetDynamicEnergy<<"\n";
+	   //cout<<"SEE1 bank->tsvArray.numAccessBits "<<bank->tsvArray.numAccessBits<<"\n";
+       	}
+       	else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.resetDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numAccessBits) << endl;
         }
 		if (inputParameter->routingMode == h_tree)
@@ -534,8 +728,13 @@ void Result::print(int indent) {
 		cout << string(indent, ' ') << "       |--- Mux Dynamic Energy         = " << TO_JOULE(bank->mat.subarray.bitlineMux.writeDynamicEnergy
 														+ bank->mat.subarray.senseAmpMuxLev1.writeDynamicEnergy
 														+ bank->mat.subarray.senseAmpMuxLev2.writeDynamicEnergy) << endl;
-		cout << string(indent, ' ') << "       |--- Cell RESET Dynamic Energy  = " << TO_JOULE(bank->mat.subarray.cellResetEnergy) << endl;
+		cout << string(indent, ' ') << "       |--- Cell RESET Dynamic Energy  = " << TO_JOULE(bank->mat.subarray.cellResetEnergy)<<"  "<< TO_JOULE(bank->mat.subarray.cellResetEnergySoft)<< endl;
+		cout << string(indent, ' ') << "       |--- Single Cell RESET Energy  = " << TO_JOULE(cell->resetEnergy)<<"  "<< TO_JOULE(cell->resetEnergySoft)  << endl;
+
 		cout << string(indent, ' ') << " - SET Dynamic Energy = " << TO_JOULE(bank->setDynamicEnergy) << endl;
+		if (cell->memCellType==MRAM && cell->memCellLevel!=SLC){
+			cout << string(indent, ' ') << " - SET Soft Dynamic Energy = " << TO_JOULE(bank->setDynamicEnergySoft) << endl;
+		}
 		if (inputParameter->routingMode == h_tree)
 			cout << string(indent, ' ') << " |--- H-Tree Dynamic Energy = " << TO_JOULE(bank->routingSetDynamicEnergy) << endl;
 		else
@@ -552,12 +751,17 @@ void Result::print(int indent) {
 		cout << string(indent, ' ') << "       |--- Mux Dynamic Energy         = " << TO_JOULE(bank->mat.subarray.bitlineMux.writeDynamicEnergy
 														+ bank->mat.subarray.senseAmpMuxLev1.writeDynamicEnergy
 														+ bank->mat.subarray.senseAmpMuxLev2.writeDynamicEnergy) << endl;
-		cout << string(indent, ' ') << "       |--- Cell SET Dynamic Energy    = " << TO_JOULE(bank->mat.subarray.cellSetEnergy) << endl;
-	} else if (cell->memCellType == SLCNAND) {
+		cout << string(indent, ' ') << "       |--- Cell SET Dynamic Energy    = " << TO_JOULE(bank->mat.subarray.cellSetEnergy) <<"  "<< TO_JOULE(bank->mat.subarray.cellSetEnergySoft)<<"  "<<TO_JOULE(bank->mat.subarray.writeDynamicEnergy)<<endl;
+		cout << string(indent, ' ') << "       |--- Single Cell SET Energy  = " << TO_JOULE(cell->setEnergy)<<"  "<< TO_JOULE(cell->setEnergySoft) << endl;
+
+	} else if (cell->memCellType == SLCNAND||cell->memCellType==MLCNAND) {
 		cout << string(indent, ' ') << " - Erase Dynamic Energy = " << TO_JOULE(bank->resetDynamicEnergy) << " per block" << endl;
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.resetDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numAccessBits) << endl;
-        } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
+        //cout<<"SEE2 bank->tsvArray.resetDynamicEnergy "<<bank->tsvArray.resetDynamicEnergy<<"\n";
+	//cout<<"SEE2 bank->tsvArray.numAccessBits "<<bank->tsvArray.numAccessBits<<"\n";
+	} 
+	else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.resetDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numAccessBits) << endl;
         }
 		if (inputParameter->routingMode == h_tree)
@@ -597,7 +801,10 @@ void Result::print(int indent) {
 		cout << string(indent, ' ') << " - Write Dynamic Energy = " << TO_JOULE(bank->writeDynamicEnergy) << endl;
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.writeDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numAccessBits) << endl;
-        } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
+            //cout<<"SEE4 bank->tsvArray.resetDynamicEnergy "<<bank->tsvArray.resetDynamicEnergy<<"\n";
+	    //cout<<"SEE4 bank->tsvArray.numAccessBits "<<bank->tsvArray.numAccessBits<<"\n";
+
+	} else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.writeDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numAccessBits) << endl;
         }
 		if (inputParameter->routingMode == h_tree)
@@ -620,7 +827,7 @@ void Result::print(int indent) {
 			cout << string(indent, ' ') << "       |--- Bitline & Cell Write Energy= " << TO_JOULE(bank->mat.subarray.cellResetEnergy) << endl;
 		}
 	}
-    if (cell->memCellType == eDRAM) {
+    if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
         cout << string(indent, ' ') << " - Refresh Dynamic Energy = " << TO_JOULE(bank->refreshDynamicEnergy) << endl;
         if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
             cout << string(indent, ' ') << " |--- TSV Dynamic Energy    = " << TO_JOULE(bank->tsvArray.writeDynamicEnergy * (bank->stackedDieCount-1) * bank->tsvArray.numReadBits) << endl;
@@ -643,19 +850,26 @@ void Result::print(int indent) {
     }
 
 	cout << string(indent, ' ') << " - Leakage Power = " << TO_WATT(bank->leakage) << endl;
+	
     if (bank->stackedDieCount > 1 && bank->partitionGranularity == 0) {
         cout << string(indent, ' ') << " |--- TSV Leakage              = " << TO_WATT(bank->tsvArray.leakage * (bank->stackedDieCount-1) * bank->tsvArray.numTotalBits) << endl;
     } else if (bank->stackedDieCount > 1 && bank->partitionGranularity == 1) {
         cout << string(indent, ' ') << " |--- TSV Leakage              = " << TO_WATT(bank->tsvArray.leakage * (bank->stackedDieCount-1) * bank->tsvArray.numTotalBits + bank->mat.tsvArray.leakage * bank->numColumnMat * bank->numRowMat * bank->mat.tsvArray.numTotalBits) << endl;
     }
 	if (inputParameter->routingMode == h_tree)
-		cout << string(indent, ' ') << " |--- H-Tree Leakage Power     = " << TO_WATT(bank->routingLeakage) << endl;
+      {		cout << string(indent, ' ') << " |--- H-Tree Leakage Power     = " << TO_WATT(bank->routingLeakage) << endl;
+          //cout<<"numRowMat "<<bank->numRowMat<<" numColumnMat "<<bank->numColumnMat<<"\n";
+      }
 	else
 		cout << string(indent, ' ') << " |--- Non-H-Tree Leakage Power = " << TO_WATT(bank->routingLeakage) << endl;
 	cout << string(indent, ' ') << " |--- Mat Leakage Power        = " << TO_WATT(bank->mat.leakage) << " per mat" << endl;
-    if (cell->memCellType == eDRAM) {
+    if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
         cout << string(indent, ' ') << " - Refresh Power = " << TO_WATT(bank->refreshDynamicEnergy / (cell->retentionTime)) << endl;
     }
+    if (cell->memCellType ==DWM) {
+        cout << string(indent, ' ') << " - Shift Dynamic Energy = " << TO_JOULE(bank->shiftDynamicEnergy) << endl;
+    }
+
 }
 
 
@@ -694,7 +908,8 @@ void Result::printAsCache(Result &tagResult, CacheAccessMode cacheAccessMode) {
 			/* Calculate latencies */
 			cacheMissLatency = tagResult.bank->readLatency;
 			cacheHitLatency = tagResult.bank->readLatency + bank->readLatency;
-			cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);
+			//cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);
+			cacheWriteLatency = tagResult.bank->writeLatency+ bank->writeLatency;
 			/* Calculate power */
 			cacheMissDynamicEnergy = tagResult.bank->readDynamicEnergy;	/* no matter what tag is always accessed */
 			cacheHitDynamicEnergy = tagResult.bank->readDynamicEnergy + bank->readDynamicEnergy;
@@ -726,7 +941,7 @@ void Result::printAsCache(Result &tagResult, CacheAccessMode cacheAccessMode) {
 		cout << " - Cache Hit Latency   = " << cacheHitLatency * 1e9 << "ns" << endl;
 		cout << " - Cache Miss Latency  = " << cacheMissLatency * 1e9 << "ns" << endl;
 		cout << " - Cache Write Latency = " << cacheWriteLatency * 1e9 << "ns" << endl;
-        if (cell->memCellType == eDRAM) {
+        if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
             cout << " - Cache Refresh Latency = " << MAX(tagResult.bank->refreshLatency, bank->refreshLatency) * 1e6 << "us per bank" << endl;
             cout << " - Cache Availability = " << ((cell->retentionTime - MAX(tagResult.bank->refreshLatency, bank->refreshLatency)) / cell->retentionTime) * 100.0 << "%" << endl;
         }
@@ -734,26 +949,30 @@ void Result::printAsCache(Result &tagResult, CacheAccessMode cacheAccessMode) {
 		cout << " - Cache Hit Dynamic Energy   = " << cacheHitDynamicEnergy * 1e9 << "nJ per access" << endl;
 		cout << " - Cache Miss Dynamic Energy  = " << cacheMissDynamicEnergy * 1e9 << "nJ per access" << endl;
 		cout << " - Cache Write Dynamic Energy = " << cacheWriteDynamicEnergy * 1e9 << "nJ per access" << endl;
-        if (cell->memCellType == eDRAM) {
+		        if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
             cout << " - Cache Refresh Dynamic Energy = " << (tagResult.bank->refreshDynamicEnergy + bank->refreshDynamicEnergy) * 1e9 << "nJ per bank" << endl;
         }
 		cout << " - Cache Total Leakage Power  = " << cacheLeakage * 1e3 << "mW" << endl;
 		cout << " |--- Cache Data Array Leakage Power = " << bank->leakage * 1e3 << "mW" << endl;
 		cout << " |--- Cache Tag Array Leakage Power  = " << tagResult.bank->leakage * 1e3 << "mW" << endl;
-        if (cell->memCellType == eDRAM) {
+        if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
             cout << " - Cache Refresh Power = " << TO_WATT(bank->refreshDynamicEnergy / (cell->retentionTime)) << " per bank" << endl;
         }
-        if (inputParameter->printLevel > 0) {
+
             cout << endl << "CACHE DATA ARRAY DETAILS";
             print(4);
             cout << endl << "CACHE TAG ARRAY DETAILS";
             tagResult.print(4);
-        }
-	}
+
+    	}
+
+
 }
 
 void Result::printToCsvFile(ofstream &outputFile) {
-/*
+    
+    
+    outputFile << cell->memCellType<<",";
 	outputFile << bank->readDynamicEnergy * 1e12 << ",";
 	outputFile << (bank->readDynamicEnergy - bank->mat.readDynamicEnergy
 					* bank->numActiveMatPerColumn * bank->numActiveMatPerRow)
@@ -788,7 +1007,7 @@ void Result::printToCsvFile(ofstream &outputFile) {
 	outputFile << (bank->mat.subarray.bitlineMux.writeDynamicEnergy
 					+ bank->mat.subarray.senseAmpMuxLev1.writeDynamicEnergy
 					+ bank->mat.subarray.senseAmpMuxLev2.writeDynamicEnergy) * 1e12 << endl;
-*/
+
 	outputFile << bank->numRowMat << "," << bank->numColumnMat << "," << bank->stackedDieCount << "," << bank->numActiveMatPerColumn << "," << bank->numActiveMatPerRow << ",";
 	outputFile << bank->numRowSubarray << "," << bank->numColumnSubarray << "," << bank->numActiveSubarrayPerColumn << "," << bank->numActiveSubarrayPerRow << ",";
 	outputFile << bank->mat.subarray.numRow << "," << bank->mat.subarray.numColumn << ",";
@@ -920,26 +1139,25 @@ void Result::printToCsvFile(ofstream &outputFile) {
 	outputFile << bank->mat.subarray.height * 1e6 << "," << bank->mat.subarray.width * 1e6 << "," << bank->mat.subarray.area * 1e6 << ",";
 	outputFile << cell->area * tech->featureSize * tech->featureSize * bank->capacity / bank->area * 100 << ",";
 	outputFile << bank->readLatency * 1e9 << "," << bank->writeLatency * 1e9 << ",";
-    if (cell->memCellType == eDRAM) {
+    if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
         outputFile << bank->refreshLatency * 1e9 << ",";
     } else {
         outputFile << "0,";
     }
 	outputFile << bank->readDynamicEnergy * 1e12 << "," << bank->writeDynamicEnergy * 1e12 << ",";
-    if (cell->memCellType == eDRAM) {
+    if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
         outputFile << bank->refreshDynamicEnergy * 1e12 << ",";
     } else {
         outputFile << "0,";
     }
 	outputFile << bank->leakage * 1e3 << ",";
-    if (cell->memCellType == eDRAM) {
+    if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
         outputFile << TO_WATT(bank->refreshDynamicEnergy / (cell->retentionTime)) << ",";
     } else {
         outputFile << "0,";
     }
 }
-
-void Result::printAsCacheToCsvFile(Result &tagResult, CacheAccessMode cacheAccessMode, ofstream &outputFile) {
+void Result::printAsCacheToCsvShort(Result &tagResult, CacheAccessMode cacheAccessMode, ofstream &outputFile) {
 	if (bank->memoryType != MemoryType::data || tagResult.bank->memoryType != tag) {
 		cout << "This is not a valid cache configuration." << endl;
 		return;
@@ -974,7 +1192,9 @@ void Result::printAsCacheToCsvFile(Result &tagResult, CacheAccessMode cacheAcces
 			/* Calculate latencies */
 			cacheMissLatency = tagResult.bank->readLatency;
 			cacheHitLatency = tagResult.bank->readLatency + bank->readLatency;
-			cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);
+			cacheWriteLatency = tagResult.bank->writeLatency+bank->writeLatency;
+			//cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);
+
 			/* Calculate power */
 			cacheMissDynamicEnergy = tagResult.bank->readDynamicEnergy;	/* no matter what tag is always accessed */
 			cacheHitDynamicEnergy = tagResult.bank->readDynamicEnergy + bank->readDynamicEnergy;
@@ -985,7 +1205,13 @@ void Result::printAsCacheToCsvFile(Result &tagResult, CacheAccessMode cacheAcces
 		/* Calculate area */
 		cacheArea = tagResult.bank->area + bank->area;	/* TO-DO: simply add them together here */
 
+
 		/* start printing */
+		outputFile << ToStringOptTarget(tagResult.optimizationTarget)<<",";
+
+		outputFile << ToStringMemCellType(cell->memCellType)<<",";
+		outputFile << cell->inputFileName<<",";
+
 		switch (cacheAccessMode) {
 		case normal_access_mode:
 			outputFile << "Normal" << ",";
@@ -993,36 +1219,128 @@ void Result::printAsCacheToCsvFile(Result &tagResult, CacheAccessMode cacheAcces
 		case fast_access_mode:
 			outputFile << "Fast" << ",";
 			break;
-		default:	/* sequential */
+		default:	 //sequential
 			outputFile << "Sequential" << ",";
 		}
-		outputFile << cacheArea * 1e6 << ",";
+
+
 		outputFile << cacheHitLatency * 1e9 << ",";
 		outputFile << cacheMissLatency * 1e9 << ",";
 		outputFile << cacheWriteLatency * 1e9 << ",";
-        if (cell->memCellType == eDRAM) {
-            outputFile << MAX(tagResult.bank->refreshLatency, bank->refreshLatency) * 1e9 << ",";
-        } else {
-            outputFile << "0,";
-        }
+
 		outputFile << cacheHitDynamicEnergy * 1e9 << ",";
 		outputFile << cacheMissDynamicEnergy * 1e9 << ",";
 		outputFile << cacheWriteDynamicEnergy * 1e9 << ",";
-        if (cell->memCellType == eDRAM) {
-            outputFile << (tagResult.bank->refreshDynamicEnergy + bank->refreshDynamicEnergy) * 1e9 << ",";
-        } else {
-            outputFile << "0,";
-        }
+
+		outputFile << cacheHitDynamicEnergy*cacheHitLatency * 1e9* 1e9 << ",";
+		outputFile << cacheWriteDynamicEnergy*cacheWriteLatency * 1e9* 1e9 << ",";
+
 		outputFile << cacheLeakage * 1e3 << ",";
-        if (cell->memCellType == eDRAM) {
-            outputFile << TO_WATT(bank->refreshDynamicEnergy / (cell->retentionTime)) << ",";
-        } else {
-            outputFile << "0,";
-        }
-		printToCsvFile(outputFile);
-		tagResult.printToCsvFile(outputFile);
-        outputFile << bank->mat.subarray.leakage + tagResult.bank->mat.subarray.leakage << ",";
-        outputFile << (bank->mat.subarray.area + tagResult.bank->mat.subarray.area) * 1e6 << ",";
+		outputFile << cacheArea * 1e6 << ",";
+		//printToCsvFile(outputFile);
+		//tagResult.printToCsvFile(outputFile);
+		//outputFile << bank->mat.subarray.leakage + tagResult.bank->mat.subarray.leakage << ",";
+		//outputFile << (bank->mat.subarray.area + tagResult.bank->mat.subarray.area) * 1e6 << ",";
 		outputFile << endl;
+
+
 	}
+}
+
+void Result::printAsCacheToCsvFile(Result &tagResult, CacheAccessMode cacheAccessMode, ofstream &outputFile) {
+         //std::cout<<" comes to printAsCacheToCsvFile \n";
+	if (bank->memoryType != MemoryType::data || tagResult.bank->memoryType != tag) {
+		cout << "This is not a valid cache configuration." << endl;
+		return;
+	} else {
+		double cacheHitLatency, cacheMissLatency, cacheWriteLatency;
+		double cacheHitDynamicEnergy, cacheMissDynamicEnergy, cacheWriteDynamicEnergy;
+		double cacheLeakage;
+		double cacheArea;
+		if (cacheAccessMode == normal_access_mode) {
+			/* Calculate latencies */
+			cacheMissLatency = tagResult.bank->readLatency;		/* only the tag access latency */
+			cacheHitLatency = MAX(tagResult.bank->readLatency, bank->mat.readLatency);	/* access tag and activate data row in parallel */
+			cacheHitLatency += bank->mat.subarray.columnDecoderLatency;		/* add column decoder latency after hit signal arrives */
+			cacheHitLatency += bank->readLatency - bank->mat.readLatency;	/* H-tree in and out latency */
+			cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);	/* Data and tag are written in parallel */
+			/* Calculate power */
+			cacheMissDynamicEnergy = tagResult.bank->readDynamicEnergy;	/* no matter what tag is always accessed */
+			cacheMissDynamicEnergy += bank->readDynamicEnergy;	/* data is also partially accessed, TO-DO: not accurate here */
+			cacheHitDynamicEnergy = tagResult.bank->readDynamicEnergy + bank->readDynamicEnergy;
+			cacheWriteDynamicEnergy = tagResult.bank->writeDynamicEnergy + bank->writeDynamicEnergy;
+		} else if (cacheAccessMode == fast_access_mode) {
+			/* Calculate latencies */
+			cacheMissLatency = tagResult.bank->readLatency;
+			cacheHitLatency = MAX(tagResult.bank->readLatency, bank->readLatency);
+			cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);
+			/* Calculate power */
+			cacheMissDynamicEnergy = tagResult.bank->readDynamicEnergy;	/* no matter what tag is always accessed */
+			cacheMissDynamicEnergy += bank->readDynamicEnergy;	/* data is also partially accessed, TO-DO: not accurate here */
+			cacheHitDynamicEnergy = tagResult.bank->readDynamicEnergy + bank->readDynamicEnergy;
+			cacheWriteDynamicEnergy = tagResult.bank->writeDynamicEnergy + bank->writeDynamicEnergy;
+		} else {		/* sequential access */
+			/* Calculate latencies */
+			cacheMissLatency = tagResult.bank->readLatency;
+			cacheHitLatency = tagResult.bank->readLatency + bank->readLatency;
+			cacheWriteLatency = tagResult.bank->writeLatency+bank->writeLatency;
+			//cacheWriteLatency = MAX(tagResult.bank->writeLatency, bank->writeLatency);
+
+			/* Calculate power */
+			cacheMissDynamicEnergy = tagResult.bank->readDynamicEnergy;	/* no matter what tag is always accessed */
+			cacheHitDynamicEnergy = tagResult.bank->readDynamicEnergy + bank->readDynamicEnergy;
+			cacheWriteDynamicEnergy = tagResult.bank->writeDynamicEnergy + bank->writeDynamicEnergy;
+		}
+		/* Calculate leakage */
+		cacheLeakage = tagResult.bank->leakage + bank->leakage;
+		/* Calculate area */
+		cacheArea = tagResult.bank->area + bank->area;	/* TO-DO: simply add them together here */
+
+	   	/* start printing */
+	   if(inputParameter->isPruningEnabled==true&&inputParameter->optimizationTarget == full_exploration){
+		    outputFile << cell->memCellType<<",";
+
+			switch (cacheAccessMode) {
+			case normal_access_mode:
+				outputFile << "Normal" << ",";
+				break;
+			case fast_access_mode:
+				outputFile << "Fast" << ",";
+				break;
+			default:	 //sequential
+				outputFile << "Sequential" << ",";
+			}
+			outputFile << cacheArea * 1e6 << ",";
+			outputFile << cacheHitLatency * 1e9 << ",";
+			outputFile << cacheMissLatency * 1e9 << ",";
+			outputFile << cacheWriteLatency * 1e9 << ",";
+			if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
+				outputFile << MAX(tagResult.bank->refreshLatency, bank->refreshLatency) * 1e9 << ",";
+			} else {
+				outputFile << "0,";
+			}
+			outputFile << cacheHitDynamicEnergy * 1e9 << ",";
+			outputFile << cacheMissDynamicEnergy * 1e9 << ",";
+			outputFile << cacheWriteDynamicEnergy * 1e9 << ",";
+			if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
+				outputFile << (tagResult.bank->refreshDynamicEnergy + bank->refreshDynamicEnergy) * 1e9 << ",";
+			} else {
+				outputFile << "0,";
+			}
+			outputFile << cacheLeakage * 1e3 << ",";
+			if (cell->memCellType == eDRAM|| cell->memCellType == DRAM) {
+				outputFile << TO_WATT(bank->refreshDynamicEnergy / (cell->retentionTime)) << ",";
+			} else {
+				outputFile << "0,";
+			}
+			printToCsvFile(outputFile);
+			tagResult.printToCsvFile(outputFile);
+			outputFile << bank->mat.subarray.leakage + tagResult.bank->mat.subarray.leakage << ",";
+			outputFile << (bank->mat.subarray.area + tagResult.bank->mat.subarray.area) * 1e6 << ",";
+			outputFile << endl;
+
+	   }
+	}
+
+
 }

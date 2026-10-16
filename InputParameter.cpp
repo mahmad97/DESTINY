@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -12,6 +13,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include <assert.h>
 
 InputParameter::InputParameter() {
 	// TODO Auto-generated constructor stub
@@ -70,6 +73,8 @@ InputParameter::InputParameter() {
 	useCactiAssumption = false;
 
 	writeScheme = normal_write;
+	readScheme = normal_read;
+
 	cacheAccessMode = normal_access_mode;
 
 	readLatencyConstraint = invalid_value;
@@ -101,7 +106,6 @@ InputParameter::InputParameter() {
     printAllOptimals = false;
     allowDifferentTagTech = false;
 
-    printLevel = 1;
 }
 
 InputParameter::~InputParameter() {
@@ -114,14 +118,14 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 	char tmp[5000];
 
 	if (!fp) {
-		cout << inputFile << " cannot be found!\n";
-		cout<<" This file may be present in \"config\" folder. If so, please run destiny from that folder, otherwise, change the file name to include folder location.\n";
+		cerr << inputFile << " cannot be found!\n";
+		cerr<<" This file may be present in \"config\" folder. If so, please run destiny from that folder, otherwise, change the file name to include folder location.\n";
 		exit(-1);
 	}
-
     forcedStackLayers = false;
 
 	while (fscanf(fp, "%[^\n]\n", line) != EOF) {
+	        //cout<<" Scanning "<<line<<"\t";
 		if (!strncmp("-DesignTarget", line, strlen("-DesignTarget"))) {
 			sscanf(line, "-DesignTarget: %s", tmp);
 			if (!strcmp(tmp, "cache"))
@@ -156,8 +160,39 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 				optimizationTarget = leakage_optimized;
 			else if (!strcmp(tmp, "Area"))
 				optimizationTarget = area_optimized;
-			else
+			else if (!strcmp(tmp, "Full"))
 				optimizationTarget = full_exploration;
+			else
+			{
+			  std::cout<<" I found OptimizationTarget as "<<tmp<<" which could not be recognized. Choosing full-design space exploration as the default \n";
+			  std::cout<<" If this is not what was intended, choose from one among these: ReadLatency, WriteLatency, ReadDynamicEnergy, WriteDynamicEnergy, ReadEDP, WriteEDP, LeakagePower, Area \n";
+			  optimizationTarget = full_exploration;
+			}
+			continue;
+		}
+		if (!strncmp("-SecondOptimizationTarget", line, strlen("-SecondOptimizationTarget"))) {
+			sscanf(line, "-SecondOptimizationTarget: %s", tmp);
+			if (!strcmp(tmp, "ReadLatency"))
+				secondOptimizationTarget = read_latency_optimized;
+			else if (!strcmp(tmp, "WriteLatency"))
+				secondOptimizationTarget = write_latency_optimized;
+			else if (!strcmp(tmp, "ReadDynamicEnergy"))
+				secondOptimizationTarget = read_energy_optimized;
+			else if (!strcmp(tmp, "WriteDynamicEnergy"))
+				secondOptimizationTarget = write_energy_optimized;
+			else if (!strcmp(tmp, "ReadEDP"))
+				secondOptimizationTarget = read_edp_optimized;
+			else if (!strcmp(tmp, "WriteEDP"))
+				secondOptimizationTarget = write_edp_optimized;
+			else if (!strcmp(tmp, "LeakagePower"))
+				secondOptimizationTarget = leakage_optimized;
+			else if (!strcmp(tmp, "Area"))
+				secondOptimizationTarget = area_optimized;
+			else
+			{
+			  secondOptimizationTarget = null_value; //secondOptimizationTarget is not used
+			}
+			cout<<" I read secondOptimizationTarget as "<<ToStringOptTarget(secondOptimizationTarget)<<"\n";
 			continue;
 		}
 
@@ -180,15 +215,34 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 		if (!strncmp("-Capacity (KB)", line, strlen("-Capacity (KB)"))) {
 			long cap;
 			sscanf(line, "-Capacity (KB): %ld", &cap);
-			capacity = cap * 1024;
+			capacity = cap * 1024;			//convert into byte
 			continue;
 		}
 		if (!strncmp("-Capacity (MB)", line, strlen("-Capacity (MB)"))) {
 			long cap;
 			sscanf(line, "-Capacity (MB): %ld", &cap);
-			capacity = cap * 1024*1024;
+			capacity = cap * 1024*1024;		//convert into byte
+			cout<<"initial capacity in bytes "<<capacity<<endl;
+
 			continue;
 		}
+
+        //prune mlc config
+		if (!strncmp("-MemCellLevel", line, strlen("-MemCellLevel"))) {
+			sscanf(line, "-MemCellLevel: %s", tmp);
+			if (!strcmp(tmp, "MLC")){
+				capacity=capacity/2;
+				wordWidth=wordWidth/2;
+				cout<<"pruned capacity "<<capacity<<endl;
+			}
+			else if(!strcmp(tmp, "TLC")){
+				capacity=capacity/3;
+				wordWidth=wordWidth/3;
+				cout<<" Warning: using TLC, word-width is not a multiple of 3!";
+			}
+			continue;
+		}
+
 		if (!strncmp("-WordWidth", line, strlen("-WordWidth"))) {
 			sscanf(line, "-WordWidth (bit): %ld", &wordWidth);
 			continue;
@@ -230,6 +284,17 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 				writeScheme = write_and_verify;
 			else
 				writeScheme = normal_write;
+			//cout<<" found write scheme \n";
+			continue;
+		}
+
+
+		if (!strncmp("-ReadScheme", line, strlen("-ReadScheme"))) {
+			sscanf(line, "-ReadScheme: %s", tmp);
+			if (!strcmp(tmp, "ReadAndCompare"))
+				readScheme = read_and_compare;
+			else
+				readScheme = normal_read;
 			continue;
 		}
 
@@ -397,6 +462,7 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 		}
 
 		if (!strncmp("-MemoryCellInputFile", line, strlen("-MemoryCellInputFile"))) {
+		  	//cout<<" Read MemoryCellInputFile \n";
 			sscanf(line, "-MemoryCellInputFile: %s", tmp);
 			fileMemCell.push_back(string(tmp));
 			continue;
@@ -514,7 +580,7 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 
 		if (!strncmp("-EnablePruning", line, strlen("-EnablePruning"))) {
 			sscanf(line, "-EnablePruning: %s", tmp);
-			if (!strcmp(tmp, "Yes"))
+			if (!strcmp(tmp, "Yes")||!strcmp(tmp, "yes")||!strcmp(tmp, "True")||!strcmp(tmp, "true"))
 				isPruningEnabled = true;
 			else
 				isPruningEnabled = false;
@@ -533,6 +599,7 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 				minAreaOptimizationLevel = 1;
 				maxAreaOptimizationLevel = 1;
 			}
+			continue;
 		}
 
 		if (!strncmp("-FlashPageSize", line, strlen("-FlashPageSize"))) {
@@ -597,6 +664,8 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
 
         if (!strncmp("-PartitionGranularity", line, strlen("-PartitionGranularity"))) {
             sscanf(line, "-PartitionGranularity: %d", &partitionGranularity);
+	    cout<<" The value of PartitionGranularity is "<<partitionGranularity<<"\n";
+	    assert(0);//TODO : remove it
             continue;
         }
 
@@ -648,11 +717,7 @@ void InputParameter::ReadInputParameterFromFile(const std::string & inputFile) {
             continue;
         }
 
-        if (!strncmp("-PrintLevel", line, strlen("-PrintLevel"))) {
-            sscanf(line, "-PrintLevel: %d", &printLevel);
-        }
-	}
-
+    }
 	fclose(fp);
 }
 
@@ -671,20 +736,23 @@ void InputParameter::PrintInputParameter() {
 	}
 
 	cout << "Capacity   : ";
+
 	if (capacity < 1024 * 1024)
-		cout << capacity / 1024 << "KB" << endl;
+		cout << capacity / 1024 * (cell->memCellLevel +1)<< "KB" << endl;
 	else if (capacity < 1024 * 1024 * 1024)
-		cout << capacity / 1024 / 1024 << "MB" << endl;
+		cout << capacity / 1024 / 1024 * (cell->memCellLevel +1)<< "MB" << endl;
 	else
-		cout << capacity / 1024 / 1024 / 1024 << "GB" << endl;
+		cout << capacity / 1024 / 1024 / 1024 * (cell->memCellLevel +1)<< "GB" << endl;
+
+
 
 	if (designTarget == cache) {
-		cout << "Cache Line Size: " << wordWidth / 8 << "Bytes" << endl;
+		cout << "Cache Line Size: " << wordWidth / 8 * (cell->memCellLevel +1) << "Bytes" << endl;
 		cout << "Cache Associativity: " << associativity << " Ways" << endl;
 	} else {
-		cout << "Data Width : " << wordWidth << "Bits";
+		cout << "Data Width : " << wordWidth * (cell->memCellLevel + 1)<< "Bits";
 		if (wordWidth % 8 == 0)
-			cout << " (" << wordWidth / 8 << "Bytes)" << endl;
+			cout << " (" << wordWidth / 8 * (cell->memCellLevel+1)<< "Bytes)" << endl;
 		else
 			cout << endl;
 	}

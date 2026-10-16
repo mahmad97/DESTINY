@@ -1,3 +1,4 @@
+//Copyright (c) 2017-2019, IIT Hyderabad. See LICENSE file in the top-level directory
 //Copyright (c) 2015-2016, UT-Battelle, LLC. See LICENSE file in the top-level directory
 // This file contains code from NVSim, (c) 2012-2013,  Pennsylvania State University 
 //and Hewlett-Packard Company. See LICENSE_NVSim file in the top-level directory.
@@ -15,6 +16,7 @@
 MemCell::MemCell() {
 	// TODO Auto-generated constructor stub
 	memCellType         = PCRAM;
+	memCellLevel		= SLC;
 	area                = 0;
 	aspectRatio         = 0;
 	resistanceOn        = 0;
@@ -23,7 +25,8 @@ MemCell::MemCell() {
 	readVoltage         = 0;
 	readCurrent         = 0;
 	readPower           = 0;
-        wordlineBoostRatio  = 1.0;
+	readPulse			= 0;
+    wordlineBoostRatio  = 1.0;
 	resetMode           = true;
 	resetVoltage        = 0;
 	resetCurrent        = 0;
@@ -60,7 +63,27 @@ MemCell::MemCell() {
 	resistanceOnAtHalfReadVoltage = 0;
 	resistanceOffAtHalfReadVoltage = 0;
 
+	/* For eDRAM */
     retentionTime = invalid_value;
+
+    /* For DWM */
+    shiftCurrent = 0;
+    shiftPulse = 0;
+    shiftEnergy = 0;
+    /* For MLC RRAM and PCRAM*/
+    avgIterations = 0;
+
+    /* For MLC MRAM*/
+	resetVoltageSoft = 0;
+	resetCurrentSoft = 0;
+	resetPulseSoft = 0;
+	resetEnergySoft = 0;
+	setVoltageSoft = 0;
+	setCurrentSoft = 0;
+	setPulseSoft = 0;
+	setEnergySoft = 0;
+
+
 }
 
 MemCell::~MemCell() {
@@ -74,10 +97,12 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 	char tmp[5000];
 
 	if (!fp) {
-		cout << inputFile << " cannot be found!\n";
-		cout<<" This file may be present in \"config\" folder. If so, please run destiny from that folder, otherwise, change the file name to include folder location.\n";
+		cerr << inputFile << " cannot be found!\n";
+		cerr<<" This file may be present in \"config\" folder. If so, please run destiny from that folder, otherwise, change the file name to include folder location.\n";
 		exit(-1);
 	}
+
+	inputFileName = inputFile;
 
 	while (fscanf(fp, "%[^\n]\n", line) != EOF) {
 		if (!strncmp("-MemCellType", line, strlen("-MemCellType"))) {
@@ -98,10 +123,26 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 				memCellType = memristor;
 			else if (!strcmp(tmp, "SLCNAND"))
 				memCellType = SLCNAND;
-			else
+			else if (!strcmp(tmp, "MLCNAND"))
 				memCellType = MLCNAND;
+			else if (!strcmp(tmp, "DWM"))
+				memCellType = DWM;
+			else
+				memCellType = SRAM;
 			continue;
 		}
+
+		if (!strncmp("-MemCellLevel", line, strlen("-MemCellLevel"))) {
+			sscanf(line, "-MemCellLevel: %s", tmp);
+			if (!strcmp(tmp, "MLC"))
+				memCellLevel = MLC;
+			else if(!strcmp(tmp, "TLC"))
+				memCellLevel = TLC;
+			else
+				memCellLevel = SLC;
+			continue;
+		}
+
 		if (!strncmp("-ProcessNode", line, strlen("-ProcessNode"))) {
 			sscanf(line, "-ProcessNode: %d", &processNode);
 			continue;
@@ -200,9 +241,15 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 			readCurrent /= 1e6;
 			continue;
 		}
+
 		if (!strncmp("-ReadPower", line, strlen("-ReadPower"))) {
 			sscanf(line, "-ReadPower (uW): %lf", &readPower);
 			readPower /= 1e6;
+			continue;
+		}
+		if (!strncmp("-ReadPulse", line, strlen("-ReadPulse"))) {
+			sscanf(line, "-ReadPulse (ns): %lf", &readPulse);
+			readPulse /= 1e9;
 			continue;
 		}
 		if (!strncmp("-WordlineBoostRatio", line, strlen("-WordlineBoostRatio"))) {
@@ -248,6 +295,30 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 			continue;
 		}
 
+		if (!strncmp("-SoftResetVoltage", line, strlen("-SoftResetVoltage"))) {
+            sscanf(line, "-SoftResetVoltage (V): %s", tmp);
+            if (!strcmp(tmp, "vdd"))
+                resetVoltageSoft = tech->vdd;
+            else
+                sscanf(line, "-ResetVoltageSoft (V): %lf", &resetVoltageSoft);
+			continue;
+		}
+		if (!strncmp("-SoftResetCurrent", line, strlen("-SoftResetCurrent"))) {
+			sscanf(line, "-SoftResetCurrent (uA): %lf", &resetCurrentSoft);
+			resetCurrentSoft /= 1e6;
+			continue;
+		}
+		if (!strncmp("-SoftResetPulse", line, strlen("-SoftResetPulse"))) {
+			sscanf(line, "-SoftResetPulse (ns): %lf", &resetPulseSoft);
+			resetPulseSoft /= 1e9;
+			continue;
+		}
+		if (!strncmp("-SoftResetEnergy", line, strlen("-SoftResetEnergy"))) {
+			sscanf(line, "-SoftResetEnergy (pJ): %lf", &resetEnergySoft);
+			resetEnergySoft /= 1e12;
+			continue;
+		}
+
 		if (!strncmp("-SetMode", line, strlen("-SetMode"))) {
 			sscanf(line, "-SetMode: %s", tmp);
 			if (!strcmp(tmp, "voltage"))
@@ -257,9 +328,9 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 			continue;
 		}
 		if (!strncmp("-SetVoltage", line, strlen("-SetVoltage"))) {
-            sscanf(line, "-ResetVoltage (V): %s", tmp);
+            sscanf(line, "-SetVoltage (V): %s", tmp);
             if (!strcmp(tmp, "vdd"))
-                resetVoltage = tech->vdd;
+                setVoltage = tech->vdd;
             else
                 sscanf(line, "-SetVoltage (V): %lf", &setVoltage);
 			continue;
@@ -277,6 +348,44 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 		if (!strncmp("-SetEnergy", line, strlen("-SetEnergy"))) {
 			sscanf(line, "-SetEnergy (pJ): %lf", &setEnergy);
 			setEnergy /= 1e12;
+			continue;
+		}
+
+		if (!strncmp("-SoftSetVoltage", line, strlen("-SoftSetVoltage"))) {
+            sscanf(line, "-SoftSetVoltage (V): %s", tmp);
+            if (!strcmp(tmp, "vdd"))
+                setVoltage = tech->vdd;
+            else
+                sscanf(line, "-SoftSetVoltage (V): %lf", &setVoltageSoft);
+			continue;
+		}
+		if (!strncmp("-SoftSetCurrent", line, strlen("-SoftSetCurrent"))) {
+			sscanf(line, "-SoftSetCurrent (uA): %lf", &setCurrentSoft);
+			setCurrentSoft /= 1e6;
+			continue;
+		}
+		if (!strncmp("-SoftSetPulse", line, strlen("-SoftSetPulse"))) {
+			sscanf(line, "-SoftSetPulse (ns): %lf", &setPulseSoft);
+			setPulseSoft /= 1e9;
+			continue;
+		}
+		if (!strncmp("-SoftSetEnergy", line, strlen("-SoftSetEnergy"))) {
+			sscanf(line, "-SoftSetEnergy (pJ): %lf", &setEnergySoft);
+			setEnergySoft /= 1e12;
+			continue;
+		}
+
+		if (!strncmp("-AverageIterations", line, strlen("-AverageIterations"))) {
+			if (memCellLevel == SLC)
+				cout << "Warning: The write iteration is ignored because the memory cell is SLC." << endl;
+			sscanf(line, "-AverageIterations: %lf", &avgIterations);
+			continue;
+		}
+		if (!strncmp("-Interval", line, strlen("-Interval"))) {
+			if (memCellLevel == SLC)
+				cout << "Warning: The write iteration is ignored because the memory cell is SLC." << endl;
+			sscanf(line, "-Interval (ns): %lf", &interval);
+			interval/=1e9;
 			continue;
 		}
 
@@ -421,6 +530,62 @@ void MemCell::ReadCellFromFile(const string & inputFile)
 				sscanf(line, "-Temperature (K): %lf", &temperature);
 			continue;
 		}
+
+		if (!strncmp("-TapeLength", line, strlen("-TapeLength"))) {
+			if (memCellType != DWM)
+				cout << "Warning: The domain length is ignored because the cell is not DWM." << endl;
+			else{
+				sscanf(line, "-TapeLength (bit): %lf", &tapeLength);
+			}
+			continue;
+		}
+
+		if (!strncmp("-PortDistance", line, strlen("-PortDistance"))) {
+			if (memCellType != DWM)
+				cout << "Warning: The port distance is ignored because the cell is not DWM." << endl;
+			else{
+				sscanf(line, "-PortDistance (bit): %lf", &portDistance);
+			}
+			continue;
+		}
+		if (!strncmp("-TapePerGroup", line, strlen("-TapePerGroup"))) {
+			if (memCellType != DWM)
+				cout << "Warning: The tape per group is ignored because the cell is not DWM." << endl;
+			else{
+				sscanf(line, "-TapePerGroup: %lf", &tapePerGroup);
+			}
+			continue;
+		}
+
+		if (!strncmp("-ShiftCurrent", line, strlen("-ShiftCurrent"))) {
+			if (memCellType != DWM)
+				cout << "Warning: The input of shift current is ignored because the cell is not DWM." << endl;
+			else{
+				sscanf(line, "-ShiftCurrent (uA): %lf", &shiftCurrent);
+				shiftCurrent /=1e6;
+			}
+			continue;
+		}
+
+		if (!strncmp("-ShiftPulse", line, strlen("-ShiftPulse"))) {
+			if (memCellType != DWM)
+				cout << "Warning: The input of shift pulse is ignored because the cell is not DWM." << endl;
+			else{
+				sscanf(line, "-ShiftPulse (ns): %lf", &shiftPulse);
+				shiftPulse /=1e9;
+			}
+			continue;
+		}
+
+		if (!strncmp("-ShiftEnergy", line, strlen("-ShiftEnergy"))) {
+			if (memCellType != DWM)
+				cout << "Warning: The input of shift energy is ignored because the cell is not DWM." << endl;
+			else{
+				sscanf(line, "-ShiftEnergy (pJ): %lf", &shiftEnergy);
+				shiftEnergy /=1e12;
+			}
+			continue;
+		}		
 	}
 
 	fclose(fp);
@@ -509,9 +674,15 @@ double MemCell::GetMemristance(double _relativeReadVoltage) { /* Get the LRS res
 	}
 }
 
+void MemCell::CalculateShiftEnergy() {
+	/*Model Based on GuangyuSun ASPDAC paper*/
+	double R = 4.8*1e-7 *tapeLength*2*tech->featureSize/(6*1e-9 * 1*tech->featureSize);
+	shiftEnergy = shiftCurrent*shiftCurrent*R*shiftPulse;
+}
+
 void MemCell::CalculateWriteEnergy() {
 	if (resetEnergy == 0) {
-		if (resetMode) {
+		if (resetMode) {	//Voltage based reset
 			if (memCellType == memristor)
 				if (accessType == none_access)
 					resetEnergy = fabs(resetVoltage) * (fabs(resetVoltage) - voltageDropAccessDevice) / resistanceOnAtResetVoltage * resetPulse;
@@ -523,7 +694,7 @@ void MemCell::CalculateWriteEnergy() {
 				resetEnergy = fabs(resetVoltage) * fabs(resetCurrent) * resetPulse;
 			else
 				resetEnergy = fabs(resetVoltage) * (fabs(resetVoltage) - voltageDropAccessDevice) / resistanceOn * resetPulse;
-		} else {
+		} else {	//Current based reset
 			if (resetVoltage == 0){
 				resetEnergy = tech->vdd * fabs(resetCurrent) * resetPulse; /*TO-DO consider charge pump*/
 			} else {
@@ -544,8 +715,9 @@ void MemCell::CalculateWriteEnergy() {
 		    */
 		}
 	}
+
 	if (setEnergy == 0) {
-		if (setMode) {
+		if (setMode) {	//Voltage based set
 			if (memCellType == memristor)
 				if (accessType == none_access)
 					setEnergy = fabs(setVoltage) * (fabs(setVoltage) - voltageDropAccessDevice) / resistanceOnAtSetVoltage * setPulse;
@@ -557,8 +729,8 @@ void MemCell::CalculateWriteEnergy() {
 				setEnergy = fabs(setVoltage) * fabs(setCurrent) * setPulse;
 			else
 				setEnergy = fabs(setVoltage) * (fabs(setVoltage) - voltageDropAccessDevice) / resistanceOn * setPulse;
-		} else {
-			if (resetVoltage == 0){
+		} else {	//Current based set
+			if (setVoltage == 0){
 				setEnergy = tech->vdd * fabs(setCurrent) * setPulse; /*TO-DO consider charge pump*/
 			} else {
 				setEnergy = fabs(setVoltage) * fabs(setCurrent) * setPulse;
@@ -576,6 +748,29 @@ void MemCell::CalculateWriteEnergy() {
 			else
 				setEnergy = setCurrent * (setCurrent * resistanceOff + voltageDropAccessDevice) * setPulse;
 			*/
+		}
+	}
+	/* For MLC MRAM*/
+	if (resetEnergySoft == 0) {
+		if (resetMode) {	//Voltage based reset
+			resetEnergySoft = fabs(resetVoltageSoft) * (fabs(resetVoltageSoft) - voltageDropAccessDevice) / resistanceOn * resetPulseSoft;
+		} else {	//Current based reset
+			if (resetVoltageSoft == 0){
+				resetEnergySoft = tech->vdd * fabs(resetCurrentSoft) * resetPulseSoft; /*TO-DO consider charge pump*/
+			} else {
+				resetEnergySoft = fabs(resetVoltageSoft) * fabs(resetCurrentSoft) * resetPulseSoft;
+			}
+		}
+	}
+	if (setEnergySoft == 0) {
+		if (setMode) {	//Voltage based reset
+			setEnergySoft = fabs(setVoltageSoft) * (fabs(setVoltageSoft) - voltageDropAccessDevice) / resistanceOn * setPulseSoft;
+		} else {	//Current based reset
+			if (setVoltageSoft == 0){
+				setEnergySoft = tech->vdd * fabs(setCurrentSoft) * setPulseSoft; /*TO-DO consider charge pump*/
+			} else {
+				setEnergySoft = fabs(setVoltageSoft) * fabs(setCurrentSoft) * setPulseSoft;
+			}
 		}
 	}
 }
@@ -632,13 +827,16 @@ void MemCell::PrintCell(int indent)
 	case MLCNAND:
 		cout << string(indent, ' ') << "Memory Cell: Multi-Level Cell NAND Flash" << endl;
 		break;
+	case DWM:
+		cout << string(indent, ' ') << "Memory Cell: DWM (Domain Wall Memory)" <<endl;
+		break;
 	default:
 		cout << string(indent, ' ') << "Memory Cell: Unknown" << endl;
 	}
 	cout << string(indent, ' ') << "Cell Area (F^2)    : " << area << " (" << heightInFeatureSize << "Fx" << widthInFeatureSize << "F)" << endl;
 	cout << string(indent, ' ') << "Cell Aspect Ratio  : " << aspectRatio << endl;
 
-	if (memCellType == PCRAM || memCellType == MRAM || memCellType == memristor || memCellType == FBRAM) {
+	if (memCellType == PCRAM || memCellType == MRAM || memCellType == memristor || memCellType == FBRAM || memCellType == DWM) {
 		if (resistanceOn < 1e3 )
 			cout << string(indent, ' ') << "Cell Turned-On Resistance : " << resistanceOn << "ohm" << endl;
 		else if (resistanceOn < 1e6)
@@ -684,6 +882,9 @@ void MemCell::PrintCell(int indent)
 		}
 		cout << string(indent, ' ') << "  - Set Pulse: " << TO_SECOND(setPulse) << endl;
 
+		if (memCellType == DWM){
+			cout << string(indent, ' ') << "  - Shift Current: " << shiftCurrent *1e6 <<"uA" << endl;
+		}
 		switch (accessType) {
 		case CMOS_access:
 			cout << string(indent, ' ') << "Access Type: CMOS" << endl;
@@ -701,7 +902,7 @@ void MemCell::PrintCell(int indent)
 		cout << string(indent, ' ') << "SRAM Cell Access Transistor Width: " << widthAccessCMOS << "F" << endl;
 		cout << string(indent, ' ') << "SRAM Cell NMOS Width: " << widthSRAMCellNMOS << "F" << endl;
 		cout << string(indent, ' ') << "SRAM Cell PMOS Width: " << widthSRAMCellPMOS << "F" << endl;
-	} else if (memCellType == SLCNAND) {
+	} else if (memCellType == SLCNAND || memCellType == MLCNAND) {
 		cout << string(indent, ' ') << "Pass Voltage       : " << flashPassVoltage << "V" << endl;
 		cout << string(indent, ' ') << "Programming Voltage: " << flashProgramVoltage << "V" << endl;
 		cout << string(indent, ' ') << "Erase Voltage      : " << flashEraseVoltage << "V" << endl;
